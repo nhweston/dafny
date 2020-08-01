@@ -784,6 +784,7 @@ TOKENS
   ellipsis = "...".
   reveal = "reveal".
   expect = "expect".
+  docComment = "/**" { stringChar } "*/".
 COMMENTS FROM "/*" TO "*/" NESTED
 COMMENTS FROM "//" TO lf
 IGNORE cr + lf + tab
@@ -828,6 +829,12 @@ Dafny
   EOF
   .
 
+DocComment<out string dc>
+= (. dc = null; .)
+  [
+    docComment  (. dc = t.val; .)
+  ].
+
 DeclModifier<ref DeclModifierData dmod>
 = ( "abstract"                             (. dmod.IsAbstract = true;  CheckAndSetToken(ref dmod.AbstractToken); .)
   | "ghost"                                (. dmod.IsGhost = true;  CheckAndSetToken(ref dmod.GhostToken); .)
@@ -840,26 +847,28 @@ TopDecl<. ModuleDefinition module, List<MemberDecl/*!*/> membersDefaultClass, bo
 = (. DeclModifierData dmod = new DeclModifierData(); ModuleDecl submodule;
      ClassDecl/*!*/ c; DatatypeDecl/*!*/ dt; TopLevelDecl td; IteratorDecl iter;
      TraitDecl/*!*/ trait;
+     string dc = null;
   .)
-  { DeclModifier<ref dmod> }
-  ( SubModuleDecl<dmod, module, out submodule> (. var litmod = submodule as LiteralModuleDecl;
-                                                  if (litmod != null && litmod.ModuleDef.PrefixIds.Count != 0) {
-                                                    var tup = new Tuple<List<IToken>, LiteralModuleDecl>(litmod.ModuleDef.PrefixIds, litmod);
-                                                    module.PrefixNamedModules.Add(tup);
-                                                  } else {
-                                                    module.TopLevelDecls.Add(submodule);
-                                                  } .)
-  | ClassDecl<dmod, module, out c>             (. module.TopLevelDecls.Add(c); .)
-  | DatatypeDecl<dmod, module, out dt>         (. module.TopLevelDecls.Add(dt); .)
-  | NewtypeDecl<dmod, module, out td>          (. module.TopLevelDecls.Add(td); .)
-  | OtherTypeDecl<dmod, module, out td>        (. module.TopLevelDecls.Add(td); .)
-  | IteratorDecl<dmod, module, out iter>       (. module.TopLevelDecls.Add(iter); .)
-  | TraitDecl<dmod, module, out trait>         (. module.TopLevelDecls.Add(trait); .)
+  DocComment<out dc>
+  { DeclModifier<ref dmod> }                       (.  .)
+  ( SubModuleDecl<dmod, module, dc, out submodule> (. var litmod = submodule as LiteralModuleDecl;
+                                                        if (litmod != null && litmod.ModuleDef.PrefixIds.Count != 0) {
+                                                          var tup = new Tuple<List<IToken>, LiteralModuleDecl>(litmod.ModuleDef.PrefixIds, litmod);
+                                                          module.PrefixNamedModules.Add(tup);
+                                                        } else {
+                                                          module.TopLevelDecls.Add(submodule);
+                                                        } .)
+  | ClassDecl<dmod, module, dc, out c>             (. module.TopLevelDecls.Add(c); .)
+  | DatatypeDecl<dmod, module, dc, out dt>         (. module.TopLevelDecls.Add(dt); .)
+  | NewtypeDecl<dmod, module, dc, out td>          (. module.TopLevelDecls.Add(td); .)
+  | OtherTypeDecl<dmod, module, dc, out td>        (. module.TopLevelDecls.Add(td); .)
+  | IteratorDecl<dmod, module, dc, out iter>       (. module.TopLevelDecls.Add(iter); .)
+  | TraitDecl<dmod, module, dc, out trait>         (. module.TopLevelDecls.Add(trait); .)
   | ClassMemberDecl<dmod, membersDefaultClass, false, true, !DafnyOptions.O.AllowGlobals,
-                    !isTopLevel && DafnyOptions.O.IronDafny && isAbstract>
+                    !isTopLevel && DafnyOptions.O.IronDafny && isAbstract, dc>
   ) .
 
-SubModuleDecl<DeclModifierData dmod, ModuleDefinition parent, out ModuleDecl submodule>
+SubModuleDecl<DeclModifierData dmod, ModuleDefinition parent, string dc, out ModuleDecl submodule>
 = (. Attributes attrs = null;  IToken/*!*/ id; var prefixIds = new List<IToken>();
      List<MemberDecl/*!*/> namedModuleDefaultClassMembers = new List<MemberDecl>();;
      List<IToken> idPath, idExports;
@@ -885,19 +894,19 @@ SubModuleDecl<DeclModifierData dmod, ModuleDefinition parent, out ModuleDecl sub
       { TopDecl<module, namedModuleDefaultClassMembers, /* isTopLevel */ false, isAbstract>}
     "}"                                 (. module.BodyEndTok = t;
                                            module.TopLevelDecls.Add(new DefaultClassDecl(module, namedModuleDefaultClassMembers));
-                                           submodule = new LiteralModuleDecl(module, parent); .)
+                                           submodule = new LiteralModuleDecl(module, parent, dc); .)
   |
     "import" ["opened" (.opened = true;.)]
     ModuleName<out id>
     ( (. idPath = new List<IToken>(); idExports = new List<IToken>(); .)
       [ QualifiedModuleExportSuffix<idPath, idExports> ]
       (. idPath.Insert(0, id);
-         submodule = new AliasModuleDecl(idPath, idPath[idPath.Count-1], parent, opened, idExports);
+         submodule = new AliasModuleDecl(idPath, idPath[idPath.Count-1], parent, opened, idExports, dc);
       .)
     | "=" QualifiedModuleExport<out idPath, out idExports>
-      (. submodule = new AliasModuleDecl(idPath, id, parent, opened, idExports); .)
+      (. submodule = new AliasModuleDecl(idPath, id, parent, opened, idExports, dc); .)
     | ":" QualifiedModuleExport<out idPath, out idExports>
-        (. submodule = new ModuleFacadeDecl(idPath, id, parent, opened, idExports); .)
+        (. submodule = new ModuleFacadeDecl(idPath, id, parent, opened, idExports, dc); .)
 
     )
 
@@ -941,7 +950,7 @@ SubModuleDecl<DeclModifierData dmod, ModuleDefinition parent, out ModuleDecl sub
     (. if (exportId.val == "export" || exportId.val == parent.Name) {
          isDefault = true;
        }
-       submodule = new ModuleExportDecl(exportId, parent, exports, extends, provideAll, revealAll, isDefault);
+       submodule = new ModuleExportDecl(exportId, parent, exports, extends, provideAll, revealAll, isDefault, dc);
     .)
   )
 .
@@ -985,7 +994,7 @@ QualifiedModuleExport<.out List<IToken> ids, out List<IToken> exports.>
   (. ids.AddRange(sids); .)
   .
 
-ClassDecl<DeclModifierData dmodClass, ModuleDefinition/*!*/ module, out ClassDecl/*!*/ c>
+ClassDecl<DeclModifierData dmodClass, ModuleDefinition/*!*/ module, string dc, out ClassDecl/*!*/ c>
 = (. Contract.Requires(module != null);
      Contract.Ensures(Contract.ValueAtReturn(out c) != null);
      IToken/*!*/ id;
@@ -1008,18 +1017,21 @@ ClassDecl<DeclModifierData dmodClass, ModuleDefinition/*!*/ module, out ClassDec
     {"," Type<out parentTrait>  (. parentTraits.Add(parentTrait); .) }
   ]
   "{"                                            (. bodyStart = t;  .)
-    { (. dmod = new DeclModifierData(); .)
+    { (. dmod = new DeclModifierData();
+         string dcm = null;
+      .)
+      DocComment<out dcm>
       { DeclModifier<ref dmod> }
-      ClassMemberDecl<dmod, members, true, false, false, false>
+      ClassMemberDecl<dmod, members, true, false, false, false, dcm>
     }
   "}"
-  (. c = new ClassDecl(id, id.val, module, typeArgs, members, attrs, parentTraits);
+  (. c = new ClassDecl(id, id.val, module, typeArgs, members, attrs, parentTraits, dc);
      c.BodyStartTok = bodyStart;
      c.BodyEndTok = t;
   .)
   .
 
-TraitDecl<DeclModifierData dmodIn, ModuleDefinition/*!*/ module, out TraitDecl/*!*/ trait>
+TraitDecl<DeclModifierData dmodIn, ModuleDefinition/*!*/ module, string dc, out TraitDecl/*!*/ trait>
 = (. Contract.Requires(module != null);
      Contract.Ensures(Contract.ValueAtReturn(out trait) != null);
      CheckDeclModifiers(dmodIn, "Traits", AllowedDeclModifiers.None);
@@ -1042,18 +1054,21 @@ TraitDecl<DeclModifierData dmodIn, ModuleDefinition/*!*/ module, out TraitDecl/*
     {"," Type<out parentTrait>  (. parentTraits.Add(parentTrait); .) }
   ]
   "{"                                            (. bodyStart = t; .)
-    { (. dmod  = new DeclModifierData(); .)
+    { (. dmod  = new DeclModifierData();
+         string dcm = null;
+      .)
+      DocComment<out dcm>
       { DeclModifier<ref dmod> }
-      ClassMemberDecl<dmod, members, true, false, false, false>
+      ClassMemberDecl<dmod, members, true, false, false, false, dcm>
     }
   "}"
-  (. trait = new TraitDecl(id, id.val, module, typeArgs, members, attrs, parentTraits);
+  (. trait = new TraitDecl(id, id.val, module, typeArgs, members, attrs, parentTraits, dc);
      trait.BodyStartTok = bodyStart;
      trait.BodyEndTok = t;
     .)
   .
 
-ClassMemberDecl<. DeclModifierData dmod, List<MemberDecl> mm, bool allowConstructors, bool isValueType, bool moduleLevelDecl, bool isWithinAbstractModule.>
+ClassMemberDecl<. DeclModifierData dmod, List<MemberDecl> mm, bool allowConstructors, bool isValueType, bool moduleLevelDecl, bool isWithinAbstractModule, string dc .>
 = (. Contract.Requires(cce.NonNullElements(mm));
      Method/*!*/ m;
      Function/*!*/ f;
@@ -1063,24 +1078,24 @@ ClassMemberDecl<. DeclModifierData dmod, List<MemberDecl> mm, bool allowConstruc
          dmod.IsStatic = false;
        }
     .)
-    FieldDecl<dmod, isValueType, mm>
-  | ConstantFieldDecl<dmod, mm, moduleLevelDecl>
+    FieldDecl<dmod, isValueType, mm, dc>
+  | ConstantFieldDecl<dmod, mm, moduleLevelDecl, dc>
   | IF(IsFunctionDecl())
     (. if (moduleLevelDecl && dmod.StaticToken != null) {
          errors.Warning(dmod.StaticToken, "module-level functions are always non-instance, so the 'static' keyword is not allowed here");
          dmod.IsStatic = false;
        }
     .)
-    FunctionDecl<dmod, isWithinAbstractModule, out f>                   (. mm.Add(f); .)
+    FunctionDecl<dmod, isWithinAbstractModule, dc, out f>                   (. mm.Add(f); .)
   | (. if (moduleLevelDecl && dmod.StaticToken != null) {
          errors.Warning(dmod.StaticToken, "module-level methods are always non-instance, so the 'static' keyword is not allowed here");
          dmod.IsStatic = false;
        }
     .)
-    MethodDecl<dmod, allowConstructors, isWithinAbstractModule, out m>  (. mm.Add(m); .)
+    MethodDecl<dmod, allowConstructors, isWithinAbstractModule, dc, out m>  (. mm.Add(m); .)
   )
   .
-DatatypeDecl<DeclModifierData dmod, ModuleDefinition/*!*/ module, out DatatypeDecl/*!*/ dt>
+DatatypeDecl<DeclModifierData dmod, ModuleDefinition/*!*/ module, string dc, out DatatypeDecl/*!*/ dt>
 = (. Contract.Requires(module != null);
      Contract.Ensures(Contract.ValueAtReturn(out dt)!=null);
      IToken/*!*/ id;
@@ -1104,9 +1119,9 @@ DatatypeDecl<DeclModifierData dmod, ModuleDefinition/*!*/ module, out DatatypeDe
   { "|" DatatypeMemberDecl<ctors> }
   [ TypeMembers<module, members> ]
   (. if (co) {
-       dt = new CoDatatypeDecl(id, id.val, module, typeArgs, ctors, members, attrs);
+       dt = new CoDatatypeDecl(id, id.val, module, typeArgs, ctors, members, attrs, dc);
      } else {
-       dt = new IndDatatypeDecl(id, id.val, module, typeArgs, ctors, members, attrs);
+       dt = new IndDatatypeDecl(id, id.val, module, typeArgs, ctors, members, attrs, dc);
      }
      dt.BodyStartTok = bodyStart;
      dt.BodyEndTok = t;
@@ -1125,15 +1140,17 @@ DatatypeMemberDecl<.List<DatatypeCtor/*!*/>/*!*/ ctors.>
   .
 TypeMembers<. ModuleDefinition/*!*/ module, List<MemberDecl> members .>
 = (. DeclModifierData dmod;
+     string dc = null;
   .)
   "{"
   { (. dmod = new DeclModifierData(); .)
+    DocComment<out dc>
     { DeclModifier<ref dmod> }
-    ClassMemberDecl<dmod, members, false, true, false, module.IsAbstract>
+    ClassMemberDecl<dmod, members, false, true, false, module.IsAbstract, dc>
   }
   "}"
   .
-FieldDecl<.DeclModifierData dmod, bool isValueType, List<MemberDecl> mm.>
+FieldDecl<.DeclModifierData dmod, bool isValueType, List<MemberDecl> mm, string dc.>
 = (. Contract.Requires(cce.NonNullElements(mm));
      Attributes attrs = null;
      IToken/*!*/ id;  Type/*!*/ ty;
@@ -1149,12 +1166,12 @@ FieldDecl<.DeclModifierData dmod, bool isValueType, List<MemberDecl> mm.>
                                                        }
                                                     .)
   { Attribute<ref attrs> }
-  FIdentType<out id, out ty>                        (. mm.Add(new Field(id, id.val, dmod.IsGhost, ty, attrs)); .)
-  { "," FIdentType<out id, out ty>                  (. mm.Add(new Field(id, id.val, dmod.IsGhost, ty, attrs)); .)
+  FIdentType<out id, out ty>                        (. mm.Add(new Field(id, id.val, dmod.IsGhost, ty, attrs, dc)); .)
+  { "," FIdentType<out id, out ty>                  (. mm.Add(new Field(id, id.val, dmod.IsGhost, ty, attrs, dc)); .)
   }
   OldSemi
   .
-ConstantFieldDecl<.DeclModifierData dmod, List<MemberDecl/*!*/>/*!*/ mm, bool moduleLevelDecl.>
+ConstantFieldDecl<.DeclModifierData dmod, List<MemberDecl/*!*/>/*!*/ mm, bool moduleLevelDecl, string dc.>
 = (. Contract.Requires(cce.NonNullElements(mm));
      Attributes attrs = null;
      IToken/*!*/ id;  Type/*!*/ ty;
@@ -1173,11 +1190,11 @@ ConstantFieldDecl<.DeclModifierData dmod, List<MemberDecl/*!*/>/*!*/ mm, bool mo
                                              (. if (e == null && ty is InferredTypeProxy) {
                                                   SemErr(id, "a const declaration must have a type or a RHS value");
                                                 }
-                                                mm.Add(new ConstantField(id, id.val, e, dmod.IsStatic, dmod.IsGhost, ty, attrs));
+                                                mm.Add(new ConstantField(id, id.val, e, dmod.IsStatic, dmod.IsGhost, ty, attrs, dc));
                                              .)
   OldSemi
   .
-NewtypeDecl<DeclModifierData dmod, ModuleDefinition module, out TopLevelDecl td>
+NewtypeDecl<DeclModifierData dmod, ModuleDefinition module, string dc, out TopLevelDecl td>
 = (. IToken id, bvId;
      Attributes attrs = null;
      td = null;
@@ -1205,13 +1222,13 @@ NewtypeDecl<DeclModifierData dmod, ModuleDefinition module, out TopLevelDecl td>
     [ TypeMembers<module, members> ]
     (. var witnessKind = witness == null ? SubsetTypeDecl.WKind.None :
        witnessIsGhost ? SubsetTypeDecl.WKind.Ghost : SubsetTypeDecl.WKind.Compiled;
-       td = new NewtypeDecl(id, id.val, module, new BoundVar(bvId, bvId.val, baseType), constraint, witnessKind, witness, members, attrs); .)
+       td = new NewtypeDecl(id, id.val, module, new BoundVar(bvId, bvId.val, baseType), constraint, witnessKind, witness, members, attrs, dc); .)
   | Type<out baseType>
     [ TypeMembers<module, members> ]
-    (. td = new NewtypeDecl(id, id.val, module, baseType, members, attrs); .)
+    (. td = new NewtypeDecl(id, id.val, module, baseType, members, attrs, dc); .)
   )
   .
-OtherTypeDecl<DeclModifierData dmod, ModuleDefinition module, out TopLevelDecl td>
+OtherTypeDecl<DeclModifierData dmod, ModuleDefinition module, string dc, out TopLevelDecl td>
 = (. IToken id, bvId;
      Attributes attrs = null;
      var characteristics = new TypeParameter.TypeParameterCharacteristics(false);
@@ -1242,11 +1259,11 @@ OtherTypeDecl<DeclModifierData dmod, ModuleDefinition module, out TopLevelDecl t
       ]
                              (. var witnessKind = witness == null ? SubsetTypeDecl.WKind.None :
                                   witnessIsGhost ? SubsetTypeDecl.WKind.Ghost : SubsetTypeDecl.WKind.Compiled;
-                                td = new SubsetTypeDecl(id, id.val, characteristics, typeArgs, module, new BoundVar(bvId, bvId.val, ty), constraint, witnessKind, witness, attrs);
+                                td = new SubsetTypeDecl(id, id.val, characteristics, typeArgs, module, new BoundVar(bvId, bvId.val, ty), constraint, witnessKind, witness, attrs, dc);
                                 kind = "Subset type";
                              .)
     |
-      Type<out ty>           (. td = new TypeSynonymDecl(id, id.val, characteristics, typeArgs, module, ty, attrs);
+      Type<out ty>           (. td = new TypeSynonymDecl(id, id.val, characteristics, typeArgs, module, ty, attrs, dc);
                                 kind = "Type synonym";
                              .)
     )
@@ -1257,7 +1274,7 @@ OtherTypeDecl<DeclModifierData dmod, ModuleDefinition module, out TopLevelDecl t
                                     // opaque type declarations at the very outermost program scope get an automatic (!new)
                                     characteristics.DisallowReferenceTypes = true;
                                   }
-                                  td = new OpaqueTypeDecl(id, id.val, module, characteristics, typeArgs, members, attrs);
+                                  td = new OpaqueTypeDecl(id, id.val, module, characteristics, typeArgs, members, attrs, dc);
                                 }
                              .)
   (. CheckDeclModifiers(dmod, kind, AllowedDeclModifiers.None); .)
@@ -1354,7 +1371,7 @@ TypeIdentOptional<out IToken/*!*/ id, out string/*!*/ identName, out Type/*!*/ t
   .)
   .
 /*------------------------------------------------------------------------*/
-IteratorDecl<DeclModifierData dmod, ModuleDefinition module, out IteratorDecl/*!*/ iter>
+IteratorDecl<DeclModifierData dmod, ModuleDefinition module, string dc, out IteratorDecl/*!*/ iter>
 = (. Contract.Ensures(Contract.ValueAtReturn(out iter) != null);
      IToken/*!*/ id;
      Attributes attrs = null;
@@ -1400,7 +1417,7 @@ IteratorDecl<DeclModifierData dmod, ModuleDefinition module, out IteratorDecl/*!
                              new Specification<FrameExpression>(mod, modAttrs),
                              new Specification<Expression>(decreases, decrAttrs),
                              req, ens, yieldReq, yieldEns,
-                             body, attrs, signatureEllipsis);
+                             body, attrs, signatureEllipsis, dc);
      iter.BodyStartTok = bodyStart;
      iter.BodyEndTok = bodyEnd;
  .)
@@ -1463,7 +1480,7 @@ TPCharOption<ref TypeParameter.TypeParameterCharacteristics characteristics>
   )
   .
 /*------------------------------------------------------------------------*/
-MethodDecl<DeclModifierData dmod, bool allowConstructor, bool isWithinAbstractModule, out Method/*!*/ m>
+MethodDecl<DeclModifierData dmod, bool allowConstructor, bool isWithinAbstractModule, string dc, out Method/*!*/ m>
 = (. Contract.Ensures(Contract.ValueAtReturn(out m) !=null);
      IToken/*!*/ id = Token.NoToken;
      bool hasName = false;  IToken keywordToken;
@@ -1556,23 +1573,23 @@ MethodDecl<DeclModifierData dmod, bool allowConstructor, bool isWithinAbstractMo
      IToken tok = id;
      if (isConstructor) {
        m = new Constructor(tok, hasName ? id.val : "_ctor", typeArgs, ins,
-                           req, new Specification<FrameExpression>(mod, modAttrs), ens, new Specification<Expression>(dec, decAttrs), (DividedBlockStmt)body, attrs, signatureEllipsis);
+                           req, new Specification<FrameExpression>(mod, modAttrs), ens, new Specification<Expression>(dec, decAttrs), (DividedBlockStmt)body, attrs, signatureEllipsis, dc);
      } else if (isIndLemma) {
        m = new InductiveLemma(tok, id.val, dmod.IsStatic, kType, typeArgs, ins, outs,
-                              req, new Specification<FrameExpression>(mod, modAttrs), ens, new Specification<Expression>(dec, decAttrs), body, attrs, signatureEllipsis);
+                              req, new Specification<FrameExpression>(mod, modAttrs), ens, new Specification<Expression>(dec, decAttrs), body, attrs, signatureEllipsis, dc);
      } else if (isCoLemma) {
        m = new CoLemma(tok, id.val, dmod.IsStatic, kType, typeArgs, ins, outs,
-                       req, new Specification<FrameExpression>(mod, modAttrs), ens, new Specification<Expression>(dec, decAttrs), body, attrs, signatureEllipsis);
+                       req, new Specification<FrameExpression>(mod, modAttrs), ens, new Specification<Expression>(dec, decAttrs), body, attrs, signatureEllipsis, dc);
      } else if (isLemma) {
        m = new Lemma(tok, id.val, dmod.IsStatic, typeArgs, ins, outs,
-                     req, new Specification<FrameExpression>(mod, modAttrs), ens, new Specification<Expression>(dec, decAttrs), body, attrs, signatureEllipsis);
+                     req, new Specification<FrameExpression>(mod, modAttrs), ens, new Specification<Expression>(dec, decAttrs), body, attrs, signatureEllipsis, dc);
      } else if (isTwoStateLemma) {
        m = new TwoStateLemma(tok, id.val, dmod.IsStatic, typeArgs, ins, outs,
                              req, new Specification<FrameExpression>(mod, modAttrs),
-                             ens, new Specification<Expression>(dec, decAttrs), body, attrs, signatureEllipsis);
+                             ens, new Specification<Expression>(dec, decAttrs), body, attrs, signatureEllipsis, dc);
      } else {
        m = new Method(tok, id.val, dmod.IsStatic, dmod.IsGhost, typeArgs, ins, outs,
-                      req, new Specification<FrameExpression>(mod, modAttrs), ens, new Specification<Expression>(dec, decAttrs), body, attrs, signatureEllipsis);
+                      req, new Specification<FrameExpression>(mod, modAttrs), ens, new Specification<Expression>(dec, decAttrs), body, attrs, signatureEllipsis, dc);
      }
      m.BodyStartTok = bodyStart;
      m.BodyEndTok = bodyEnd;
@@ -1842,7 +1859,7 @@ GenericInstantiation<.List<Type> gt.>
   ">"
   .
 /*------------------------------------------------------------------------*/
-FunctionDecl<DeclModifierData dmod, bool isWithinAbstractModule, out Function/*!*/ f>
+FunctionDecl<DeclModifierData dmod, bool isWithinAbstractModule, string dc, out Function/*!*/ f>
 = (. Contract.Ensures(Contract.ValueAtReturn(out f)!=null);
      Attributes attrs = null;
      IToken/*!*/ id = Token.NoToken;  // to please compiler
@@ -1977,22 +1994,22 @@ FunctionDecl<DeclModifierData dmod, bool isWithinAbstractModule, out Function/*!
      IToken tok = id;
      if (isTwoState && isPredicate) {
         f = new TwoStatePredicate(tok, id.val, dmod.IsStatic, typeArgs, formals,
-                                  reqs, reads, ens, new Specification<Expression>(decreases, null), body, attrs, signatureEllipsis);
+                                  reqs, reads, ens, new Specification<Expression>(decreases, null), body, attrs, signatureEllipsis, dc);
      } else if (isTwoState) {
         f = new TwoStateFunction(tok, id.val, dmod.IsStatic, typeArgs, formals, result, returnType,
-                                 reqs, reads, ens, new Specification<Expression>(decreases, null), body, attrs, signatureEllipsis);
+                                 reqs, reads, ens, new Specification<Expression>(decreases, null), body, attrs, signatureEllipsis, dc);
      } else if (isPredicate) {
         f = new Predicate(tok, id.val, dmod.IsStatic, dmod.IsProtected, !isFunctionMethod, typeArgs, formals,
-                          reqs, reads, ens, new Specification<Expression>(decreases, null), body, Predicate.BodyOriginKind.OriginalOrInherited, attrs, signatureEllipsis);
+                          reqs, reads, ens, new Specification<Expression>(decreases, null), body, Predicate.BodyOriginKind.OriginalOrInherited, attrs, signatureEllipsis, dc);
      } else if (isIndPredicate) {
         f = new InductivePredicate(tok, id.val, dmod.IsStatic, dmod.IsProtected, kType, typeArgs, formals,
-                                   reqs, reads, ens, body, attrs, signatureEllipsis);
+                                   reqs, reads, ens, body, attrs, signatureEllipsis, dc);
      } else if (isCoPredicate) {
         f = new CoPredicate(tok, id.val, dmod.IsStatic, dmod.IsProtected, kType, typeArgs, formals,
-                            reqs, reads, ens, body, attrs, signatureEllipsis);
+                            reqs, reads, ens, body, attrs, signatureEllipsis, dc);
      } else {
         f = new Function(tok, id.val, dmod.IsStatic, dmod.IsProtected, !isFunctionMethod, typeArgs, formals, result, returnType,
-                         reqs, reads, ens, new Specification<Expression>(decreases, null), body, attrs, signatureEllipsis);
+                         reqs, reads, ens, new Specification<Expression>(decreases, null), body, attrs, signatureEllipsis, dc);
      }
      f.BodyStartTok = bodyStart;
      f.BodyEndTok = bodyEnd;

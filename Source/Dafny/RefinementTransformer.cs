@@ -413,22 +413,22 @@ namespace Microsoft.Dafny
 
       if (f is Predicate) {
         return new Predicate(tok, f.Name, f.HasStaticKeyword, f.IsProtected, isGhost, tps, formals,
-          req, reads, ens, decreases, body, bodyOrigin, refinementCloner.MergeAttributes(f.Attributes, moreAttributes), null);
+          req, reads, ens, decreases, body, bodyOrigin, refinementCloner.MergeAttributes(f.Attributes, moreAttributes), null, f.DocComment);
       } else if (f is InductivePredicate) {
         return new InductivePredicate(tok, f.Name, f.HasStaticKeyword, f.IsProtected, ((InductivePredicate)f).TypeOfK, tps, formals,
-          req, reads, ens, body, refinementCloner.MergeAttributes(f.Attributes, moreAttributes), null);
+          req, reads, ens, body, refinementCloner.MergeAttributes(f.Attributes, moreAttributes), null, f.DocComment);
       } else if (f is CoPredicate) {
         return new CoPredicate(tok, f.Name, f.HasStaticKeyword, f.IsProtected, ((CoPredicate)f).TypeOfK, tps, formals,
-          req, reads, ens, body, refinementCloner.MergeAttributes(f.Attributes, moreAttributes), null);
+          req, reads, ens, body, refinementCloner.MergeAttributes(f.Attributes, moreAttributes), null, f.DocComment);
       } else if (f is TwoStatePredicate) {
         return new TwoStatePredicate(tok, f.Name, f.HasStaticKeyword, tps, formals,
-          req, reads, ens, decreases, body, refinementCloner.MergeAttributes(f.Attributes, moreAttributes), null);
+          req, reads, ens, decreases, body, refinementCloner.MergeAttributes(f.Attributes, moreAttributes), null, f.DocComment);
       } else if (f is TwoStateFunction) {
         return new TwoStateFunction(tok, f.Name, f.HasStaticKeyword, tps, formals, result, refinementCloner.CloneType(f.ResultType),
-          req, reads, ens, decreases, body, refinementCloner.MergeAttributes(f.Attributes, moreAttributes), null);
+          req, reads, ens, decreases, body, refinementCloner.MergeAttributes(f.Attributes, moreAttributes), null, f.DocComment);
       } else {
         return new Function(tok, f.Name, f.HasStaticKeyword, f.IsProtected, isGhost, tps, formals, result, refinementCloner.CloneType(f.ResultType),
-          req, reads, ens, decreases, body, refinementCloner.MergeAttributes(f.Attributes, moreAttributes), null);
+          req, reads, ens, decreases, body, refinementCloner.MergeAttributes(f.Attributes, moreAttributes), null, f.DocComment);
       }
     }
 
@@ -454,25 +454,25 @@ namespace Microsoft.Dafny
       if (m is Constructor) {
         var dividedBody = (DividedBlockStmt)newBody ?? refinementCloner.CloneDividedBlockStmt((DividedBlockStmt)m.BodyForRefinement);
         return new Constructor(new RefinementToken(m.tok, moduleUnderConstruction), m.Name, tps, ins,
-          req, mod, ens, decreases, dividedBody, refinementCloner.MergeAttributes(m.Attributes, moreAttributes), null);
+          req, mod, ens, decreases, dividedBody, refinementCloner.MergeAttributes(m.Attributes, moreAttributes), null, m.DocComment);
       }
       var body = newBody ?? refinementCloner.CloneBlockStmt(m.BodyForRefinement);
       if (m is InductiveLemma) {
         return new InductiveLemma(new RefinementToken(m.tok, moduleUnderConstruction), m.Name, m.HasStaticKeyword, ((InductiveLemma)m).TypeOfK, tps, ins, m.Outs.ConvertAll(refinementCloner.CloneFormal),
-          req, mod, ens, decreases, body, refinementCloner.MergeAttributes(m.Attributes, moreAttributes), null);
+          req, mod, ens, decreases, body, refinementCloner.MergeAttributes(m.Attributes, moreAttributes), null, m.DocComment);
       } else if (m is CoLemma) {
         return new CoLemma(new RefinementToken(m.tok, moduleUnderConstruction), m.Name, m.HasStaticKeyword, ((CoLemma)m).TypeOfK, tps, ins, m.Outs.ConvertAll(refinementCloner.CloneFormal),
-          req, mod, ens, decreases, body, refinementCloner.MergeAttributes(m.Attributes, moreAttributes), null);
+          req, mod, ens, decreases, body, refinementCloner.MergeAttributes(m.Attributes, moreAttributes), null, m.DocComment);
       } else if (m is Lemma) {
         return new Lemma(new RefinementToken(m.tok, moduleUnderConstruction), m.Name, m.HasStaticKeyword, tps, ins, m.Outs.ConvertAll(refinementCloner.CloneFormal),
-          req, mod, ens, decreases, body, refinementCloner.MergeAttributes(m.Attributes, moreAttributes), null);
+          req, mod, ens, decreases, body, refinementCloner.MergeAttributes(m.Attributes, moreAttributes), null, m.DocComment);
       } else if (m is TwoStateLemma) {
         var two = (TwoStateLemma)m;
         return new TwoStateLemma(new RefinementToken(m.tok, moduleUnderConstruction), m.Name, m.HasStaticKeyword, tps, ins, m.Outs.ConvertAll(refinementCloner.CloneFormal),
-          req, mod, ens, decreases, body, refinementCloner.MergeAttributes(m.Attributes, moreAttributes), null);
+          req, mod, ens, decreases, body, refinementCloner.MergeAttributes(m.Attributes, moreAttributes), null, m.DocComment);
       } else {
         return new Method(new RefinementToken(m.tok, moduleUnderConstruction), m.Name, m.HasStaticKeyword, m.IsGhost, tps, ins, m.Outs.ConvertAll(refinementCloner.CloneFormal),
-          req, mod, ens, decreases, body, refinementCloner.MergeAttributes(m.Attributes, moreAttributes), null);
+          req, mod, ens, decreases, body, refinementCloner.MergeAttributes(m.Attributes, moreAttributes), null, m.DocComment);
       }
     }
 
@@ -537,7 +537,7 @@ namespace Microsoft.Dafny
         yens,
         newBody,
         refinementCloner.MergeAttributes(prev.Attributes, nw.Attributes),
-        null);
+        null, null);
     }
 
     ClassDecl MergeClass(ClassDecl nw, ClassDecl prev) {
@@ -590,7 +590,7 @@ namespace Microsoft.Dafny
               if ((!(origConst.Type is InferredTypeProxy) && newConst.Type is InferredTypeProxy) || (origConst.Rhs != null && newConst.Rhs == null)) {
                 var typ = newConst.Type is InferredTypeProxy ? refinementCloner.CloneType(origConst.Type) : newConst.Type;
                 var rhs = newConst.Rhs ?? origConst.Rhs;
-                nw.Members[index] = new ConstantField(newConst.tok, newConst.Name, rhs, newConst.HasStaticKeyword, newConst.IsGhost, typ, newConst.Attributes);
+                nw.Members[index] = new ConstantField(newConst.tok, newConst.Name, rhs, newConst.HasStaticKeyword, newConst.IsGhost, typ, newConst.Attributes, newConst.DocComment);
               }
             }
 

@@ -141,7 +141,7 @@ namespace Microsoft.Dafny
       readonly ISet<TopLevelDecl> Pool = new HashSet<TopLevelDecl>();
       ISet<TopLevelDecl> IAmbiguousThing<TopLevelDecl>.Pool { get { return Pool; } }
       private AmbiguousTopLevelDecl(ModuleDefinition m, string name, ISet<TopLevelDecl> pool)
-        : base(pool.First().tok, name, m, new List<TypeParameter>(), null) {
+        : base(pool.First().tok, name, m, new List<TypeParameter>(), null, null) {
         Contract.Requires(name != null);
         Contract.Requires(pool != null && 2 <= pool.Count);
         Pool = pool;
@@ -172,7 +172,7 @@ namespace Microsoft.Dafny
       readonly ISet<MemberDecl> Pool = new HashSet<MemberDecl>();
       ISet<MemberDecl> IAmbiguousThing<MemberDecl>.Pool { get { return Pool; } }
       private AmbiguousMemberDecl(ModuleDefinition m, string name, ISet<MemberDecl> pool)
-        : base(pool.First().tok, name, true, pool.First().IsGhost, null) {
+        : base(pool.First().tok, name, true, pool.First().IsGhost, null, null) {
         Contract.Requires(name != null);
         Contract.Requires(pool != null && 2 <= pool.Count);
         Pool = pool;
@@ -222,24 +222,24 @@ namespace Microsoft.Dafny
       builtIns.TupleType(Token.NoToken, 0, true);
 
       // Populate the members of the basic types
-      var floor = new SpecialField(Token.NoToken, "Floor", SpecialField.ID.Floor, null, false, false, false, Type.Int, null);
+      var floor = new SpecialField(Token.NoToken, "Floor", SpecialField.ID.Floor, null, false, false, false, Type.Int, null, null);
       floor.AddVisibilityScope(prog.BuiltIns.SystemModule.VisibilityScope, false);
       valuetypeDecls[(int)ValuetypeVariety.Real].Members.Add(floor.Name, floor);
 
-      var isLimit = new SpecialField(Token.NoToken, "IsLimit", SpecialField.ID.IsLimit, null, false, false, false, Type.Bool, null);
+      var isLimit = new SpecialField(Token.NoToken, "IsLimit", SpecialField.ID.IsLimit, null, false, false, false, Type.Bool, null, null);
       isLimit.AddVisibilityScope(prog.BuiltIns.SystemModule.VisibilityScope, false);
       valuetypeDecls[(int)ValuetypeVariety.BigOrdinal].Members.Add(isLimit.Name, isLimit);
 
-      var isSucc = new SpecialField(Token.NoToken, "IsSucc", SpecialField.ID.IsSucc, null, false, false, false, Type.Bool, null);
+      var isSucc = new SpecialField(Token.NoToken, "IsSucc", SpecialField.ID.IsSucc, null, false, false, false, Type.Bool, null, null);
       isSucc.AddVisibilityScope(prog.BuiltIns.SystemModule.VisibilityScope, false);
       valuetypeDecls[(int)ValuetypeVariety.BigOrdinal].Members.Add(isSucc.Name, isSucc);
 
-      var limitOffset = new SpecialField(Token.NoToken, "Offset", SpecialField.ID.Offset, null, false, false, false, Type.Int, null);
+      var limitOffset = new SpecialField(Token.NoToken, "Offset", SpecialField.ID.Offset, null, false, false, false, Type.Int, null, null);
       limitOffset.AddVisibilityScope(prog.BuiltIns.SystemModule.VisibilityScope, false);
       valuetypeDecls[(int)ValuetypeVariety.BigOrdinal].Members.Add(limitOffset.Name, limitOffset);
       builtIns.ORDINAL_Offset = limitOffset;
 
-      var isNat = new SpecialField(Token.NoToken, "IsNat", SpecialField.ID.IsNat, null, false, false, false, Type.Bool, null);
+      var isNat = new SpecialField(Token.NoToken, "IsNat", SpecialField.ID.IsNat, null, false, false, false, Type.Bool, null, null);
       isNat.AddVisibilityScope(prog.BuiltIns.SystemModule.VisibilityScope, false);
       valuetypeDecls[(int)ValuetypeVariety.BigOrdinal].Members.Add(isNat.Name, isNat);
 
@@ -249,16 +249,16 @@ namespace Microsoft.Dafny
         var isFinite = typeVariety == ValuetypeVariety.Map;
 
         var r = new SetType(isFinite, new UserDefinedType(vtd.TypeArgs[0]));
-        var keys = new SpecialField(Token.NoToken, "Keys", SpecialField.ID.Keys, null, false, false, false, r, null);
+        var keys = new SpecialField(Token.NoToken, "Keys", SpecialField.ID.Keys, null, false, false, false, r, null, null);
 
         r = new SetType(isFinite, new UserDefinedType(vtd.TypeArgs[1]));
-        var values = new SpecialField(Token.NoToken, "Values", SpecialField.ID.Values, null, false, false, false, r, null);
+        var values = new SpecialField(Token.NoToken, "Values", SpecialField.ID.Values, null, false, false, false, r, null, null);
 
         var gt = vtd.TypeArgs.ConvertAll(tp => (Type)new UserDefinedType(tp));
         var dt = builtIns.TupleType(Token.NoToken, 2, true);
         var tupleType = new UserDefinedType(Token.NoToken, dt.Name, dt, gt);
         r = new SetType(isFinite, tupleType);
-        var items = new SpecialField(Token.NoToken, "Items", SpecialField.ID.Items, null, false, false, false, r, null);
+        var items = new SpecialField(Token.NoToken, "Items", SpecialField.ID.Items, null, false, false, false, r, null, null);
 
         foreach (var memb in new[] { keys, values, items }) {
           memb.EnclosingClass = vtd;
@@ -271,14 +271,14 @@ namespace Microsoft.Dafny
       // a family of types rolled up in one ValuetypeDecl. Therefore, we use the special SelfType as the result type.
       List<Formal> formals = new List<Formal> { new Formal(Token.NoToken, "w", Type.Nat(), true, false, false) };
       var rotateLeft = new SpecialFunction(Token.NoToken, "RotateLeft", prog.BuiltIns.SystemModule, false, false, false, new List<TypeParameter>(), formals, new SelfType(),
-        new List<MaybeFreeExpression>(), new List<FrameExpression>(), new List<MaybeFreeExpression>(), new Specification<Expression>(new List<Expression>(), null), null, null, null);
+        new List<MaybeFreeExpression>(), new List<FrameExpression>(), new List<MaybeFreeExpression>(), new Specification<Expression>(new List<Expression>(), null), null, null, null, null);
       rotateLeft.EnclosingClass = valuetypeDecls[(int)ValuetypeVariety.Bitvector];
       rotateLeft.AddVisibilityScope(prog.BuiltIns.SystemModule.VisibilityScope, false);
       valuetypeDecls[(int)ValuetypeVariety.Bitvector].Members.Add(rotateLeft.Name, rotateLeft);
 
       formals = new List<Formal> { new Formal(Token.NoToken, "w", Type.Nat(), true, false, false) };
       var rotateRight = new SpecialFunction(Token.NoToken, "RotateRight", prog.BuiltIns.SystemModule, false, false, false, new List<TypeParameter>(), formals, new SelfType(),
-        new List<MaybeFreeExpression>(), new List<FrameExpression>(), new List<MaybeFreeExpression>(), new Specification<Expression>(new List<Expression>(), null), null, null, null);
+        new List<MaybeFreeExpression>(), new List<FrameExpression>(), new List<MaybeFreeExpression>(), new Specification<Expression>(new List<Expression>(), null), null, null, null, null);
       rotateRight.EnclosingClass = valuetypeDecls[(int)ValuetypeVariety.Bitvector];
       rotateRight.AddVisibilityScope(prog.BuiltIns.SystemModule.VisibilityScope, false);
       valuetypeDecls[(int)ValuetypeVariety.Bitvector].Members.Add(rotateRight.Name, rotateRight);
@@ -1358,7 +1358,7 @@ namespace Microsoft.Dafny
         var defaultClass = new DefaultClassDecl(modDef, new List<MemberDecl>());
         modDef.TopLevelDecls.Add(defaultClass);
         // Add the new module to the top-level declarations of its parent and then bind its names as usual
-        var subdecl = new LiteralModuleDecl(modDef, moduleDecl);
+        var subdecl = new LiteralModuleDecl(modDef, moduleDecl, null);
         moduleDecl.TopLevelDecls.Add(subdecl);
         BindModuleName_LiteralModuleDecl(subdecl, prefixNamedModules.ConvertAll(ShortenPrefix), bindings);
       }
@@ -1402,7 +1402,7 @@ namespace Microsoft.Dafny
         foreach (var tup in prefixModules) {
           if (tup.Item1.Count == 0) {
             tup.Item2.ModuleDef.Module = litmod.ModuleDef;  // change the parent, now that we have found the right parent module for the prefix-named module
-            var sm = new LiteralModuleDecl(tup.Item2.ModuleDef, litmod.ModuleDef);  // this will create a ModuleDecl with the right parent
+            var sm = new LiteralModuleDecl(tup.Item2.ModuleDef, litmod.ModuleDef, null);  // this will create a ModuleDecl with the right parent
             litmod.ModuleDef.TopLevelDecls.Add(sm);
           } else {
             litmod.ModuleDef.PrefixNamedModules.Add(tup);
@@ -1696,7 +1696,7 @@ namespace Microsoft.Dafny
             if (members.ContainsKey(p.Name)) {
               reporter.Error(MessageSource.Resolver, p, "Name of in-parameter is used by another member of the iterator: {0}", p.Name);
             } else {
-              var field = new SpecialField(p.tok, p.Name, SpecialField.ID.UseIdParam, p.CompileName, p.IsGhost, false, false, p.Type, null);
+              var field = new SpecialField(p.tok, p.Name, SpecialField.ID.UseIdParam, p.CompileName, p.IsGhost, false, false, p.Type, null, null);
               field.EnclosingClass = iter;  // resolve here
               field.InheritVisibility(iter);
               members.Add(p.Name, field);
@@ -1709,7 +1709,7 @@ namespace Microsoft.Dafny
               reporter.Error(MessageSource.Resolver, p, "Name of yield-parameter is used by another member of the iterator: {0}", p.Name);
             } else {
               nonDuplicateOuts.Add(p);
-              var field = new SpecialField(p.tok, p.Name, SpecialField.ID.UseIdParam, p.CompileName, p.IsGhost, true, true, p.Type, null);
+              var field = new SpecialField(p.tok, p.Name, SpecialField.ID.UseIdParam, p.CompileName, p.IsGhost, true, true, p.Type, null, null);
               field.EnclosingClass = iter;  // resolve here
               field.InheritVisibility(iter);
               iter.OutsFields.Add(field);
@@ -1725,7 +1725,7 @@ namespace Microsoft.Dafny
             }
             // we add some field to OutsHistoryFields, even if there was an error; the name of the field, in case of error, is not so important
             var tp = new SeqType(p.Type.NormalizeExpand());
-            var field = new SpecialField(p.tok, nm, SpecialField.ID.UseIdParam, nm, true, true, false, tp, null);
+            var field = new SpecialField(p.tok, nm, SpecialField.ID.UseIdParam, nm, true, true, false, tp, null, null);
             field.EnclosingClass = iter;  // resolve here
             field.InheritVisibility(iter);
             iter.OutsHistoryFields.Add(field);  // for now, just record this field (until all parameters have been added as members)
@@ -1737,9 +1737,9 @@ namespace Microsoft.Dafny
             iter.Members.Add(f);
           });
           // add the additional special variables as fields
-          iter.Member_Reads = new SpecialField(iter.tok, "_reads", SpecialField.ID.Reads, null, true, false, false, new SetType(true, builtIns.ObjectQ()), null);
-          iter.Member_Modifies = new SpecialField(iter.tok, "_modifies", SpecialField.ID.Modifies, null, true, false, false, new SetType(true, builtIns.ObjectQ()), null);
-          iter.Member_New = new SpecialField(iter.tok, "_new", SpecialField.ID.New, null, true, true, true, new SetType(true, builtIns.ObjectQ()), null);
+          iter.Member_Reads = new SpecialField(iter.tok, "_reads", SpecialField.ID.Reads, null, true, false, false, new SetType(true, builtIns.ObjectQ()), null, null);
+          iter.Member_Modifies = new SpecialField(iter.tok, "_modifies", SpecialField.ID.Modifies, null, true, false, false, new SetType(true, builtIns.ObjectQ()), null, null);
+          iter.Member_New = new SpecialField(iter.tok, "_new", SpecialField.ID.New, null, true, true, true, new SetType(true, builtIns.ObjectQ()), null, null);
           foreach (var field in new List<Field>() { iter.Member_Reads, iter.Member_Modifies, iter.Member_New }) {
             field.EnclosingClass = iter;  // resolve here
             field.InheritVisibility(iter);
@@ -1752,7 +1752,7 @@ namespace Microsoft.Dafny
           var i = 0;
           foreach (var p in iter.Decreases.Expressions) {
             var nm = "_decreases" + i;
-            var field = new SpecialField(p.tok, nm, SpecialField.ID.UseIdParam, nm, true, false, false, new InferredTypeProxy(), null);
+            var field = new SpecialField(p.tok, nm, SpecialField.ID.UseIdParam, nm, true, false, false, new InferredTypeProxy(), null, null);
             field.EnclosingClass = iter;  // resolve here
             field.InheritVisibility(iter);
             iter.DecreasesFields.Add(field);
@@ -1770,7 +1770,7 @@ namespace Microsoft.Dafny
             new Specification<FrameExpression>(new List<FrameExpression>(), null),
             new List<MaybeFreeExpression>(),
             new Specification<Expression>(new List<Expression>(), null),
-            null, null, null);
+            null, null, null, null);
           // --- here comes predicate Valid()
           var valid = new Predicate(iter.tok, "Valid", false, true, true, new List<TypeParameter>(),
             new List<Formal>(),
@@ -1778,7 +1778,7 @@ namespace Microsoft.Dafny
             new List<FrameExpression>(),
             new List<MaybeFreeExpression>(),
             new Specification<Expression>(new List<Expression>(), null),
-            null, Predicate.BodyOriginKind.OriginalOrInherited, null, null);
+            null, Predicate.BodyOriginKind.OriginalOrInherited, null, null, null);
           // --- here comes method MoveNext
           var moveNext = new Method(iter.tok, "MoveNext", false, false, new List<TypeParameter>(),
             new List<Formal>(), new List<Formal>() { new Formal(iter.tok, "more", Type.Bool, false, false) },
@@ -1786,7 +1786,7 @@ namespace Microsoft.Dafny
             new Specification<FrameExpression>(new List<FrameExpression>(), null),
             new List<MaybeFreeExpression>(),
             new Specification<Expression>(new List<Expression>(), null),
-            null, null, null);
+            null, null, null, null);
           // add these implicit members to the class
           init.EnclosingClass = iter;
           init.InheritVisibility(iter);
@@ -1861,7 +1861,7 @@ namespace Microsoft.Dafny
 
               // create and add the query "method" (field, really)
               string queryName = ctor.Name + "?";
-              var query = new SpecialField(ctor.tok, queryName, SpecialField.ID.UseIdParam, "is_" + ctor.CompileName, false, false, false, Type.Bool, null);
+              var query = new SpecialField(ctor.tok, queryName, SpecialField.ID.UseIdParam, "is_" + ctor.CompileName, false, false, false, Type.Bool, null, null);
               query.InheritVisibility(dt);
               query.EnclosingClass = dt;  // resolve here
               members.Add(queryName, query);
@@ -1981,7 +1981,7 @@ namespace Microsoft.Dafny
                 new Specification<Expression>(new List<Expression>() { new IdentifierExpr(cop.tok, k.Name) }, null),
                 cop.Body,
                 null,
-                cop);
+                cop, cop.DocComment);
               extraMember = cop.PrefixPredicate;
               // In the call graph, add an edge from P# to P, since this will have the desired effect of detecting unwanted cycles.
               moduleDef.CallGraph.AddEdge(cop.PrefixPredicate, cop);
@@ -2003,7 +2003,7 @@ namespace Microsoft.Dafny
                 req, cloner.CloneSpecFrameExpr(com.Mod), ens,
                 new Specification<Expression>(decr, null),
                 null, // Note, the body for the prefix method will be created once the call graph has been computed and the SCC for the colemma is known
-                cloner.CloneAttributes(com.Attributes), com);
+                cloner.CloneAttributes(com.Attributes), com, com.DocComment);
               extraMember = com.PrefixLemma;
               // In the call graph, add an edge from M# to M, since this will have the desired effect of detecting unwanted cycles.
               moduleDef.CallGraph.AddEdge(com.PrefixLemma, com);
@@ -2063,7 +2063,7 @@ namespace Microsoft.Dafny
       if (d is ModuleFacadeDecl) {
         var abs = (ModuleFacadeDecl)d;
         var sig = MakeAbstractSignature(abs.OriginalSignature, Name + "." + abs.Name, abs.Height, mods, compilationModuleClones);
-        var a = new ModuleFacadeDecl(abs.Path, abs.tok, m, abs.Opened, abs.Exports);
+        var a = new ModuleFacadeDecl(abs.Path, abs.tok, m, abs.Opened, abs.Exports, abs.DocComment);
         a.Signature = sig;
         a.OriginalSignature = abs.OriginalSignature;
         return a;
