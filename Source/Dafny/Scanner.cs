@@ -495,6 +495,10 @@ public class Scanner {
 		NextCh();
 		if (ch == '*') {
 			NextCh();
+			if (ch == '*') {
+				buffer.Pos = pos0; NextCh(); line = line0; col = col0; charPos = charPos0;
+				return false;
+			}
 			for(;;) {
 				if (ch == '*') {
 					NextCh();

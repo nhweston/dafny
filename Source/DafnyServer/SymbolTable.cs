@@ -39,7 +39,8 @@ namespace DafnyServer {
             ParentClass = predicate.EnclosingClass.Name,
             SymbolType = SymbolInformation.Type.Predicate,
             StartToken = predicate.tok,
-            EndToken = predicate.BodyEndTok
+            EndToken = predicate.BodyEndTok,
+            DocComment = predicate.DocComment,
           };
           information.Add(predicateSymbol);
 
@@ -54,7 +55,8 @@ namespace DafnyServer {
             EndColumn = fn.BodyEndTok.col,
             EndLine = fn.BodyEndTok.line,
             EndPosition = fn.BodyEndTok.pos,
-            EndToken = fn.BodyEndTok
+            EndToken = fn.BodyEndTok,
+            DocComment = fn.DocComment,
           };
           information.Add(functionSymbol);
         } else {
@@ -77,7 +79,8 @@ namespace DafnyServer {
             EndColumn = m.BodyEndTok.col,
             EndLine = m.BodyEndTok.line,
             EndPosition = m.BodyEndTok.pos,
-            EndToken = m.BodyEndTok
+            EndToken = m.BodyEndTok,
+            DocComment = m.DocComment,
           };
           information.Add(methodSymbol);
         }
@@ -94,7 +97,8 @@ namespace DafnyServer {
           ParentClass = fs.EnclosingClass.Name,
           SymbolType = SymbolInformation.Type.Field,
           StartToken = fs.tok,
-          References = FindFieldReferencesInternal(fs.Name, fs.EnclosingClass.Name, fs.EnclosingClass.Module.Name)
+          References = FindFieldReferencesInternal(fs.Name, fs.EnclosingClass.Name, fs.EnclosingClass.Module.Name),
+          DocComment = fs.DocComment,
         };
         if (fs.Type is UserDefinedType) {
           var userType = fs.Type as UserDefinedType;
@@ -113,7 +117,8 @@ namespace DafnyServer {
             Name = cs.Name,
             SymbolType = SymbolInformation.Type.Class,
             StartToken = cs.tok,
-            EndToken = cs.BodyEndTok
+            EndToken = cs.BodyEndTok,
+            DocComment = cs.DocComment,
           };
           information.Add(classSymbol);
         }
@@ -154,7 +159,8 @@ namespace DafnyServer {
                   Module = userType.ResolvedClass.Module.CompileName,
                   SymbolType = SymbolInformation.Type.Definition,
                   StartToken = method.BodyStartTok,
-                  EndToken = method.BodyEndTok
+                  EndToken = method.BodyEndTok,
+                  DocComment = method.DocComment,
                 });
               }
             }
@@ -171,7 +177,7 @@ namespace DafnyServer {
                 ParentClass = autoGhost.Resolved.Type.ToString(),
                 SymbolType = SymbolInformation.Type.Definition,
                 StartToken = updateStatement.Tok,
-                EndToken = updateStatement.EndTok
+                EndToken = updateStatement.EndTok,
               });
             }
           }
@@ -214,7 +220,7 @@ namespace DafnyServer {
           Module = userType.ResolvedClass.Module.CompileName,
           Call = reveiverName + "." + callStmt.MethodSelect.Member,
           SymbolType = SymbolInformation.Type.Call,
-          StartToken = callStmt.MethodSelect.tok
+          StartToken = callStmt.MethodSelect.tok,
         });
       }
     }
@@ -238,7 +244,7 @@ namespace DafnyServer {
           Module = type.ResolvedClass.Module.CompileName,
           Call = designator + "." + exprDotName.SuffixName,
           SymbolType = SymbolInformation.Type.Call,
-          StartToken = exprDotName.tok
+          StartToken = exprDotName.tok,
         });
       }
     }
@@ -397,6 +403,8 @@ namespace DafnyServer {
       public string ReferencedClass { get; set; }
       [DataMember(Name = "ReferencedModule")]
       public string ReferencedModule { get; set; }
+      [DataMember(Name = "DocComment")]
+      public string DocComment { get; set; }
       [DataMember(Name = "SymbolType", Order = 1)]
       private string SymbolTypeString {
         get { return Enum.GetName(typeof(Type), SymbolType); }
