@@ -19,6 +19,7 @@ namespace DafnyServer {
 
     public List<SymbolInformation> CalculateSymbols() {
       foreach (var module in _dafnyProgram.Modules()) {
+        Console.WriteLine(module.Name);
         AddMethods(module, _information);
         AddFields(module, _information);
         AddClasses(module, _information);
@@ -41,6 +42,7 @@ namespace DafnyServer {
             StartToken = predicate.tok,
             EndToken = predicate.BodyEndTok,
             DocComment = predicate.DocComment,
+            Doc = Doc.Parse(predicate.DocComment).Body,
           };
           information.Add(predicateSymbol);
 
@@ -57,6 +59,7 @@ namespace DafnyServer {
             EndPosition = fn.BodyEndTok.pos,
             EndToken = fn.BodyEndTok,
             DocComment = fn.DocComment,
+            Doc = Doc.Parse(fn.DocComment).Body,
           };
           information.Add(functionSymbol);
         } else {
@@ -81,6 +84,7 @@ namespace DafnyServer {
             EndPosition = m.BodyEndTok.pos,
             EndToken = m.BodyEndTok,
             DocComment = m.DocComment,
+            Doc = Doc.Parse(m.DocComment).Body,
           };
           information.Add(methodSymbol);
         }
@@ -99,6 +103,7 @@ namespace DafnyServer {
           StartToken = fs.tok,
           References = FindFieldReferencesInternal(fs.Name, fs.EnclosingClass.Name, fs.EnclosingClass.Module.Name),
           DocComment = fs.DocComment,
+          Doc = Doc.Parse(fs.DocComment).Body,
         };
         if (fs.Type is UserDefinedType) {
           var userType = fs.Type as UserDefinedType;
@@ -119,6 +124,7 @@ namespace DafnyServer {
             StartToken = cs.tok,
             EndToken = cs.BodyEndTok,
             DocComment = cs.DocComment,
+            Doc = Doc.Parse(cs.DocComment).Body,
           };
           information.Add(classSymbol);
         }
@@ -405,6 +411,8 @@ namespace DafnyServer {
       public string ReferencedModule { get; set; }
       [DataMember(Name = "DocComment")]
       public string DocComment { get; set; }
+      [DataMember(Name = "Doc")]
+      public string Doc { get; set; }
       [DataMember(Name = "SymbolType", Order = 1)]
       private string SymbolTypeString {
         get { return Enum.GetName(typeof(Type), SymbolType); }

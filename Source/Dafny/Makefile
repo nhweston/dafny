@@ -5,7 +5,7 @@
 # point to whatever directory you install that into.
 # ###############################################################################
 COCO_EXE_DIR = ..\..\third_party\Coco\bin
-FRAME_DIR = ..\..\third_party\Coco\src
+FRAME_DIR = .
 COCO = $(COCO_EXE_DIR)\Coco.exe
 
 # "all" depends on 2 files, really (Parser.cs and Scanner.cs), but they

@@ -142,6 +142,7 @@
   <ItemGroup>
     <Compile Include="CounterExampleProvider.cs" />
     <Compile Include="DafnyHelper.cs" />
+    <Compile Include="Doc.cs" />
     <Compile Include="SymbolTable.cs" />
     <Compile Include="Utilities.cs" />
     <Compile Include="VerificationTask.cs" />

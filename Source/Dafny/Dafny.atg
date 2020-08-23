@@ -834,7 +834,7 @@ Dafny
 DocComment<out string dc>
 = (. dc = null; .)
   [
-    docComment  (. dc = t.val; .)
+    docComment  (. dc = t.val.Substring(3, t.val.Length - 5); .)
   ].
 
 DeclModifier<ref DeclModifierData dmod>

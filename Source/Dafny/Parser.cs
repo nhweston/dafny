@@ -924,7 +924,7 @@ int StringToInt(string s, int defaultValue, string errString) {
 		dc = null; 
 		if (la.kind == 91) {
 			Get();
-			dc = t.val; 
+			dc = t.val.Substring(3, t.val.Length - 5); 
 		}
 	}
 
