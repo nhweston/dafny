@@ -11643,6 +11643,7 @@ namespace Microsoft.Dafny {
     public readonly Expression E;
     public readonly bool IsFree;
     public readonly AssertLabel/*?*/ Label;
+    public readonly string DocComment;
 
     [ContractInvariantMethod]
     void ObjectInvariant() {
@@ -11682,12 +11683,21 @@ namespace Microsoft.Dafny {
       Attributes = attrs;
     }
 
-    public MaybeFreeExpression(Expression e, bool isFree, AssertLabel/*?*/ label, Attributes attrs) {
+    public MaybeFreeExpression(Expression e, bool isFree, Attributes attrs, string docComment) {
+      Contract.Requires(e != null);
+      E = e;
+      IsFree = isFree;
+      Attributes = attrs;
+      DocComment = docComment;
+    }
+
+    public MaybeFreeExpression(Expression e, bool isFree, AssertLabel/*?*/ label, Attributes attrs, string docComment = null) {
       Contract.Requires(e != null);
       E = e;
       IsFree = isFree;
       Label = label;
       Attributes = attrs;
+      this.DocComment = docComment;
     }
 
     public void AddCustomizedErrorMessage(IToken tok, string s) {
