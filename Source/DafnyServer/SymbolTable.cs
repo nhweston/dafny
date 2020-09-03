@@ -131,10 +131,15 @@ namespace DafnyServer {
       }
     }
 
-    private static ICollection<string> ParseContracts(IEnumerable<MaybeFreeExpression> contractClauses) {
-      var requires = new List<string>();
+    private static ICollection<SpecInformation> ParseContracts(IEnumerable<MaybeFreeExpression> contractClauses) {
+      var requires = new List<SpecInformation>();
       foreach (var maybeFreeExpression in contractClauses) {
-        requires.Add(Printer.ExprToString(maybeFreeExpression.E));
+        var expr = maybeFreeExpression.E;
+        var docComment = maybeFreeExpression.DocComment;
+        requires.Add(new SpecInformation {
+          Expression = Printer.ExprToString(maybeFreeExpression.E),
+          Doc = Doc.Parse(maybeFreeExpression.DocComment).Body,
+        });
       }
       return requires;
     }
@@ -375,6 +380,13 @@ namespace DafnyServer {
       return information;
     }
 
+    public class SpecInformation {
+      [DataMember(Name = "Expression")]
+      public string Expression { get; set; }
+      [DataMember(Name = "DocComment")]
+      public string Doc { get; set; }
+    }
+
     [Serializable]
     [DataContract]
     public class SymbolInformation {
@@ -400,9 +412,9 @@ namespace DafnyServer {
       [DataMember(Name = "References")]
       public ICollection<ReferenceInformation> References { get; set; }
       [DataMember(Name = "Requires")]
-      public ICollection<string> Requires { get; set; }
+      public ICollection<SpecInformation> Requires { get; set; }
       [DataMember(Name = "Ensures")]
-      public ICollection<string> Ensures { get; set; }
+      public ICollection<SpecInformation> Ensures { get; set; }
       [DataMember(Name = "Call")]
       public string Call { get; set; }
       [DataMember(Name = "ReferencedClass")]

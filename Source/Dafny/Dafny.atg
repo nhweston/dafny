@@ -662,8 +662,7 @@ CHARACTERS
   charChar = ANY - '\'' - '\\' - cr - lf.
   stringChar = ANY - '"' - '\\' - cr - lf.
   verbatimStringChar = ANY - '"'.
-  docCommentChar = ANY - '*'.
-  nonSlashChar = ANY - '/'.
+  dcChar = ANY - '*' - '/'.
 
 /*------------------------------------------------------------------------*/
 TOKENS
@@ -786,7 +785,7 @@ TOKENS
   ellipsis = "...".
   reveal = "reveal".
   expect = "expect".
-  docComment = "/**" { docCommentChar | ('*' CONTEXT (nonSlashChar)) } "*/".
+  docComment = "/**" {'/' | dcChar | '*' {'*'} dcChar} '*' {'*'} '/'.
 COMMENTS FROM "/*" TO "*/" NESTED
 COMMENTS FROM "//" TO lf
 IGNORE cr + lf + tab

@@ -815,12 +815,9 @@ public class Scanner {
 				if (ch == '*') {AddCh(); goto case 56;}
 				else {goto case 0;}
 			case 56:
-				if (ch <= ')' || ch >= '+' && ch <= 65535) {apx = 0; AddCh(); goto case 56;}
-				else if (ch == '*') {apx = 0; AddCh(); goto case 68;}
-				else {
-					tlen -= apx;
-					SetScannerBehindT();
-					goto case 0;}
+				if (ch <= ')' || ch >= '+' && ch <= 65535) {AddCh(); goto case 56;}
+				else if (ch == '*') {AddCh(); goto case 68;}
+				else {goto case 0;}
 			case 57:
 				{t.kind = 91; break;}
 			case 58:
@@ -874,8 +871,9 @@ public class Scanner {
 				if (ch == '"') {AddCh(); goto case 32;}
 				else {t.kind = 24; break;}
 			case 68:
-				if (ch <= '.' || ch >= '0' && ch <= 65535) {apx++; AddCh(); goto case 56;}
+				if (ch <= ')' || ch >= '+' && ch <= '.' || ch >= '0' && ch <= 65535) {AddCh(); goto case 56;}
 				else if (ch == '/') {AddCh(); goto case 57;}
+				else if (ch == '*') {AddCh(); goto case 68;}
 				else {goto case 0;}
 			case 69:
 				if (ch >= '0' && ch <= '9') {AddCh(); goto case 58;}
