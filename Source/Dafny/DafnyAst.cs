@@ -3847,6 +3847,15 @@ namespace Microsoft.Dafny {
       }
     }
 
+    public static IEnumerable<ModuleDecl> AllModules(List<TopLevelDecl> declarations) {
+      foreach (var d in declarations) {
+        ModuleDecl mod = d as ModuleDecl;
+        if (mod != null) {
+          yield return mod;
+        }
+      }
+    }
+
     public static IEnumerable<ClassDecl> AllClasses(List<TopLevelDecl> declarations) {
       foreach (var d in declarations) {
         var cl = d as ClassDecl;
