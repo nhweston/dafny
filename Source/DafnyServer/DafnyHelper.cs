@@ -150,7 +150,11 @@ namespace Microsoft.Dafny {
     }
 
     private static string ConvertToJson<T>(T data) {
-      var serializer = new DataContractJsonSerializer(typeof(T));
+      IEnumerable<System.Type> kts = new System.Type[] {
+        typeof(DeclInfo), typeof(ClassInfo), typeof(DatatypeInfo), typeof(TypeSynonymInfo),
+        typeof(NewtypeInfo), typeof(FunctionInfo), typeof(MethodInfo), typeof(FieldInfo)
+      };
+      var serializer = new DataContractJsonSerializer(typeof(T), kts);
       using (var ms = new MemoryStream()) {
         serializer.WriteObject(ms, data);
         return Encoding.Default.GetString(ms.ToArray());
