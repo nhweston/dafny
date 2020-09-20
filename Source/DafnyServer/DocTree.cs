@@ -11,7 +11,7 @@ using System.Text;
 
 namespace DafnyServer {
   
-  public class SymbolTableV2 {
+  public class DocTree {
 
     private static string ConvertToJson<T>(T data) {
       var serializer = new DataContractJsonSerializer(typeof(T));
@@ -22,12 +22,12 @@ namespace DafnyServer {
     }
     private readonly Program _program;
 
-    public SymbolTableV2(Program program) {
+    public DocTree(Program program) {
       _program = program;
     }
 
-    public ICollection<DeclInfo> GetSymbolTree() {
-      Console.WriteLine("Constructing symbol tree");
+    public ICollection<DeclInfo> GetDocTree() {
+      Console.WriteLine("Constructing doc tree");
       var mod = _program.DefaultModuleDef;
       return this.CollectTopLevelDecls(mod).Select(GetDeclInfo).ToList();
     }

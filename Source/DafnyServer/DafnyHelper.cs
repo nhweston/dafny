@@ -100,11 +100,21 @@ namespace Microsoft.Dafny {
     public void Symbols() {
       ServerUtils.ApplyArgs(args, reporter);
       if (Parse() && Resolve()) {
-        var symbolTable = new SymbolTableV2(dafnyProgram);
-        var symbols = symbolTable.GetSymbolTree();
+        var symbolTable = new SymbolTable(dafnyProgram);
+        var symbols = symbolTable.CalculateSymbols();
         Console.WriteLine("SYMBOLS_START " + ConvertToJson(symbols) + " SYMBOLS_END");
       } else {
         Console.WriteLine("SYMBOLS_START [] SYMBOLS_END");
+      }
+    }
+
+    public void DocTree() {
+      ServerUtils.ApplyArgs(args, reporter);
+      if (Parse() && Resolve()) {
+        var docTree = (new DocTree(dafnyProgram)).GetDocTree();
+        Console.WriteLine("DOCTREE_START " + ConvertToJson(docTree) + " DOCTREE_END");
+      } else {
+        Console.WriteLine("DOCTREE_START [] DOCTREE_END");
       }
     }
 

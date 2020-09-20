@@ -56,6 +56,10 @@ namespace Microsoft.Dafny {
       new DafnyHelper(args, filename, ProgramSource).Symbols();
     }
 
+    internal void DocTree() {
+      new DafnyHelper(args, filename, ProgramSource).DocTree();
+    }
+
     public void CounterExample() {
       new DafnyHelper(args, filename, ProgramSource).CounterExample();
     }

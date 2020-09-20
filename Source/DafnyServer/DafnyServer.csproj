@@ -143,8 +143,8 @@
     <Compile Include="CounterExampleProvider.cs" />
     <Compile Include="DafnyHelper.cs" />
     <Compile Include="Doc.cs" />
+    <Compile Include="DocTree.cs" />
     <Compile Include="SymbolTable.cs" />
-    <Compile Include="SymbolTableV2.cs" />
     <Compile Include="Utilities.cs" />
     <Compile Include="VerificationTask.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

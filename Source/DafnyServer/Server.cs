@@ -83,6 +83,10 @@ namespace Microsoft.Dafny {
           ServerUtils.checkArgs(command, 0);
           var payload = ReadPayload();
           VerificationTask.ReadTask(payload).Symbols();
+        } else if (verb == "doctree") {
+          ServerUtils.checkArgs(command, 0);
+          var payload = ReadPayload();
+          VerificationTask.ReadTask(payload).DocTree();
         } else if (verb == "version") {
           ServerUtils.checkArgs(command, 0);
           ReadPayload();
