@@ -67,7 +67,7 @@ namespace DafnyServer {
       var r = new SpecInfo {
         kind = kind,
         clause = Printer.ExprToString(exp.E),
-        doc = Doc.Parse(exp.DocComment),
+        doc = (new Doc(exp.DocComment)).body,
       };
       Console.WriteLine(ConvertToJson(r));
       return r;
@@ -106,11 +106,22 @@ namespace DafnyServer {
       return r;
     }
 
-    private FormalInfo GetFormalInfo(Formal f) {
+    private FormalInfo GetFormalInfo(Formal f, Doc doc, bool isOut) {
       Console.WriteLine("Formal");
       var r = new FormalInfo {
         name = f.Name,
         typ = f.Type.ToString(),
+        doc = doc == null ? null : (isOut ? doc.returns : doc.vparams)[f.Name],
+      };
+      Console.WriteLine(ConvertToJson(r));
+      return r;
+    }
+
+    private TypeParamInfo GetTypeParamInfo(TypeParameter tp, Doc doc) {
+      Console.WriteLine("Type parameter");
+      var r = new TypeParamInfo {
+        name = tp.Name,
+        doc = doc.tparams[tp.Name],
       };
       Console.WriteLine(ConvertToJson(r));
       return r;
@@ -120,7 +131,7 @@ namespace DafnyServer {
       Console.WriteLine("Datatype constructor: " + ctor.Name);
       var r = new CtorInfo {
         name = ctor.Name,
-        vparams = ctor.Formals.Select(GetFormalInfo).ToList(),
+        vparams = ctor.Formals.Select(f => GetFormalInfo(f, null, false)).ToList(),
       };
       Console.WriteLine(ConvertToJson(r));
       return r;
@@ -133,7 +144,7 @@ namespace DafnyServer {
         modifiers = mod.IsAbstract ? new[] { "abstract" } : new string[] { },
         refines = mod.RefinementBaseName?.val,
         decls = this.CollectTopLevelDecls(mod).Select(GetDeclInfo).ToList(),
-        doc = Doc.Parse(docComment),
+        doc = (new Doc(docComment)).body,
       };
       Console.WriteLine(ConvertToJson(r));
       return r;
@@ -141,13 +152,14 @@ namespace DafnyServer {
 
     private ClassInfo GetClassInfo(ClassDecl cl) {
       Console.WriteLine("Class: " + cl.Name);
+      var doc = new Doc(cl.DocComment);
       var r = new ClassInfo {
         name = cl.Name,
         isTrait = cl is TraitDecl,
-        tparams = cl.TypeArgs.Select(ta => ta.Name).ToList(),
+        tparams = cl.TypeArgs.Select(tp => GetTypeParamInfo(tp, doc)).ToList(),
         xtnds = cl.ParentTraits.Select(t => t.ToString()).ToList(),
         members = cl.Members.Select(m => GetDeclInfo(m)).ToList(),
-        doc = Doc.Parse(cl.DocComment),
+        doc = doc.body,
       };
       Console.WriteLine(ConvertToJson(r));
       return r;
@@ -155,12 +167,13 @@ namespace DafnyServer {
 
     private DatatypeInfo GetDatatypeInfo(DatatypeDecl dt) {
       Console.WriteLine("Datatype: " + dt.Name);
+      var doc = new Doc(dt.DocComment);
       var r = new DatatypeInfo {
         name = dt.Name,
         isCodata = dt is CoDatatypeDecl,
-        tparams = dt.TypeArgs.Select(ta => ta.Name).ToList(),
+        tparams = dt.TypeArgs.Select(tp => GetTypeParamInfo(tp, doc)).ToList(),
         ctors = dt.Ctors.Select(GetCtorInfo).ToList(),
-        doc = Doc.Parse(dt.DocComment),
+        doc = doc.body,
       };
       Console.WriteLine(ConvertToJson(r));
       return r;
@@ -168,11 +181,12 @@ namespace DafnyServer {
 
     private TypeSynonymInfo GetTypeSynonymInfo(TypeSynonymDecl ts) {
       Console.WriteLine("Type synonym (TypeSynonymDecl): " + ts.Name);
+      var doc = new Doc(ts.DocComment);
       var r = new TypeSynonymInfo {
         name = ts.Name,
-        tparams = ts.TypeArgs.Select(ta => ta.Name).ToList(),
+        tparams = ts.TypeArgs.Select(tp => GetTypeParamInfo(tp, doc)).ToList(),
         rhs = ts.Rhs.ToString(),
-        doc = Doc.Parse(ts.DocComment),
+        doc = doc.body,
       };
       Console.WriteLine(ConvertToJson(r));
       return r;
@@ -180,11 +194,12 @@ namespace DafnyServer {
 
     private TypeSynonymInfo GetTypeSynonymInfo(OpaqueTypeDecl ot) {
       Console.WriteLine("Type synonym (OpaqueTypeDecl): " + ot.Name);
+      var doc = new Doc(ot.DocComment);
       var r = new TypeSynonymInfo {
         name = ot.Name,
-        tparams = ot.TypeArgs.Select(ta => ta.Name).ToList(),
+        tparams = ot.TypeArgs.Select(tp => GetTypeParamInfo(tp, doc)).ToList(),
         rhs = null,
-        doc = Doc.Parse(ot.DocComment),
+        doc = doc.body,
       };
       Console.WriteLine(ConvertToJson(r));
       return r;
@@ -192,11 +207,12 @@ namespace DafnyServer {
 
     private NewtypeInfo GetNewtypeInfo(NewtypeDecl nt) {
       Console.WriteLine("Newtype: " + nt.Name);
+      var doc = new Doc(nt.DocComment);
       var r = new NewtypeInfo {
         name = nt.Name,
         btyp = nt.BaseType.ToString(),
         constraint = Printer.ExprToString(nt.Constraint),
-        doc = Doc.Parse(nt.DocComment),
+        doc = doc.body,
       };
       Console.WriteLine(ConvertToJson(r));
       return r;
@@ -205,6 +221,7 @@ namespace DafnyServer {
     private FunctionInfo GetFunctionInfo(Function f) {
       Console.WriteLine("Function: " + f.Name);
       var modifiers = new List<string>();
+      var doc = new Doc(f.DocComment);
       if (f.IsGhost) modifiers.Add("ghost");
       if (f.IsStatic) modifiers.Add("static");
       if (f.IsProtected) modifiers.Add("protected");
@@ -224,11 +241,11 @@ namespace DafnyServer {
           : f.IsGhost ? "function"
           : "function method",
         modifiers = modifiers,
-        tparams = f.TypeArgs.Select(ta => ta.Name).ToList(),
-        vparams = f.Formals.Select(GetFormalInfo).ToList(),
+        tparams = f.TypeArgs.Select(tp => GetTypeParamInfo(tp, doc)).ToList(),
+        vparams = f.Formals.Select(vp => GetFormalInfo(vp, doc, false)).ToList(),
         rtyp = f.ResultType.ToString(),
         spec = spec,
-        doc = Doc.Parse(f.DocComment),
+        doc = doc.body,
       };
       Console.WriteLine(ConvertToJson(r));
       return r;
@@ -236,6 +253,7 @@ namespace DafnyServer {
 
     private MethodInfo GetMethodInfo(Method m) {
       Console.WriteLine("Method: " + m.Name);
+      var doc = new Doc(m.DocComment);
       var modifiers = new List<string>();
       if (m.IsGhost) modifiers.Add("ghost");
       if (m.IsStatic) modifiers.Add("static");
@@ -253,11 +271,11 @@ namespace DafnyServer {
           : m is Lemma || m is TwoStateLemma ? "lemma"
           : "method",
         modifiers = modifiers,
-        tparams = m.TypeArgs.Select(ta => ta.Name).ToList(),
-        vparams = m.Ins.Select(GetFormalInfo).ToList(),
-        returns = m.Outs.Select(GetFormalInfo).ToList(),
+        tparams = m.TypeArgs.Select(tp => GetTypeParamInfo(tp, doc)).ToList(),
+        vparams = m.Ins.Select(vp => GetFormalInfo(vp, doc, false)).ToList(),
+        returns = m.Outs.Select(vp => GetFormalInfo(vp, doc, true)).ToList(),
         spec = spec,
-        doc = Doc.Parse(m.DocComment),
+        doc = doc.body,
       };
       Console.WriteLine(ConvertToJson(r));
       return r;
@@ -265,10 +283,11 @@ namespace DafnyServer {
 
     private FieldInfo GetFieldInfo(Field f) {
       Console.WriteLine("Field: " + f.Name);
+      var doc = new Doc(f.DocComment);
       var r = new FieldInfo {
         name = f.Name,
         typ = f.Type.ToString(),
-        doc = Doc.Parse(f.DocComment),
+        doc = doc.body,
       };
       Console.WriteLine(ConvertToJson(r));
       return r;
@@ -287,7 +306,7 @@ namespace DafnyServer {
     [DataMember]
     public string clause;
     [DataMember]
-    public Doc doc;
+    public string doc;
   }
 
   [Serializable]
@@ -297,6 +316,17 @@ namespace DafnyServer {
     public string name;
     [DataMember]
     public string typ;
+    [DataMember]
+    public string doc;
+  }
+
+  [Serializable]
+  [DataContract]
+  public class TypeParamInfo {
+    [DataMember]
+    public string name;
+    [DataMember]
+    public string doc;
   }
 
   [Serializable]
@@ -332,7 +362,7 @@ namespace DafnyServer {
     [DataMember]
     public ICollection<DeclInfo> decls;
     [DataMember]
-    public Doc doc;
+    public string doc;
   }
 
   [Serializable]
@@ -346,13 +376,13 @@ namespace DafnyServer {
     [DataMember]
     public bool isTrait;
     [DataMember]
-    public ICollection<string> tparams;
+    public ICollection<TypeParamInfo> tparams;
     [DataMember]
     public ICollection<string> xtnds;
     [DataMember]
     public ICollection<DeclInfo> members;
     [DataMember]
-    public Doc doc;
+    public string doc;
   }
 
   [Serializable]
@@ -363,11 +393,11 @@ namespace DafnyServer {
     [DataMember]
     public bool isCodata;
     [DataMember]
-    public ICollection<string> tparams;
+    public ICollection<TypeParamInfo> tparams;
     [DataMember]
     public ICollection<CtorInfo> ctors;
     [DataMember]
-    public Doc doc;
+    public string doc;
   }
 
   [Serializable]
@@ -376,11 +406,11 @@ namespace DafnyServer {
     [DataMember]
     public string name;
     [DataMember]
-    public ICollection<string> tparams;
+    public ICollection<TypeParamInfo> tparams;
     [DataMember]
     public string rhs;
     [DataMember]
-    public Doc doc;
+    public string doc;
   }
 
   [Serializable]
@@ -393,7 +423,7 @@ namespace DafnyServer {
     [DataMember]
     public string constraint;
     [DataMember]
-    public Doc doc;
+    public string doc;
   }
 
   [Serializable]
@@ -406,7 +436,7 @@ namespace DafnyServer {
     [DataMember]
     public ICollection<string> modifiers;
     [DataMember]
-    public ICollection<string> tparams;
+    public ICollection<TypeParamInfo> tparams;
     [DataMember]
     public ICollection<FormalInfo> vparams;
     [DataMember]
@@ -414,7 +444,7 @@ namespace DafnyServer {
     [DataMember]
     public ICollection<SpecInfo> spec;
     [DataMember]
-    public Doc doc;
+    public string doc;
   }
 
   [Serializable]
@@ -427,7 +457,7 @@ namespace DafnyServer {
     [DataMember]
     public ICollection<string> modifiers;
     [DataMember]
-    public ICollection<string> tparams;
+    public ICollection<TypeParamInfo> tparams;
     [DataMember]
     public ICollection<FormalInfo> vparams;
     [DataMember]
@@ -435,7 +465,7 @@ namespace DafnyServer {
     [DataMember]
     public ICollection<SpecInfo> spec;
     [DataMember]
-    public Doc doc;
+    public string doc;
   }
 
   [Serializable]
@@ -446,7 +476,7 @@ namespace DafnyServer {
     [DataMember]
     public string typ;
     [DataMember]
-    public Doc doc;
+    public string doc;
   }
 
 }

@@ -6,24 +6,13 @@ using System.Runtime.Serialization;
 
 namespace DafnyServer {
 
-  [Serializable]
-  [DataContract]
-  public class DocTag {
-    [DataMember]
-    public string tagName;
-    [DataMember]
-    public string tagValue;
-  }
-
-  [Serializable]
-  [DataContract]
   public class Doc {
 
     private static Regex LINE_REGEX = new Regex(@"(\s+\*+\s*)?(.*)");
 
-    private static Regex TAG_REGEX = new Regex(@"@([a-zA-Z]*)\s+(.*)");
+    private static Regex TAG_REGEX = new Regex(@"@([a-zA-Z]*)\s+(\w+)\s+(.*)");
 
-    public static List<string> SplitParts(string comment) {
+    private static List<string> SplitParts(string comment) {
       if (comment == null) {
         return new List<string>();
       }
@@ -45,54 +34,56 @@ namespace DafnyServer {
       return result;
     }
 
-    public static string ParseBody(string body) {
+    public Doc(string comment) {
+      var parts = SplitParts(comment);
+      if (parts.Count <= 0) {
+        return;
+      }
+      ParseBody(parts[0]);
+      vparams = new Dictionary<string, string>();
+      tparams = new Dictionary<string, string>();
+      returns = new Dictionary<string, string>();
+      for (int i = 1; i < parts.Count; i++) {
+        ParseTag(parts[i]);
+      }
+    }
+
+    public void ParseBody(string body) {
       StringBuilder sb = new StringBuilder();
       foreach (string rawLine in body.Split('\n')) {
         string line = LINE_REGEX.Match(rawLine).Groups[2].Value.Trim();
         sb.AppendLine(line);
       }
-      return sb.ToString().Trim();
+      body = sb.ToString().Trim();
     }
 
-    public static DocTag ParseTag(string s) {
+    public void ParseTag(string s) {
       var match = TAG_REGEX.Match(s);
       if (!match.Success) {
-        return new DocTag {
-          tagName = "",
-          tagValue = "(malformed tag)",
-        };
+        Console.WriteLine("Malformed tag");
+        return;
       }
-      return new DocTag {
-        tagName = match.Groups[1].Value.Trim(),
-        tagValue = match.Groups[2].Value.Trim(),
-      };
+      var kind = match.Groups[1].Value.Trim();
+      var name = match.Groups[2].Value.Trim();
+      var body = match.Groups[3].Value.Trim();
+      if (kind == "param") {
+        vparams.Add(name, body);
+      }
+      else if (kind == "tparam") {
+        tparams.Add(name, body);
+      }
+      else if (kind == "returns") {
+        returns.Add(name, body);
+      }
+      else {
+        Console.WriteLine("Unknown tag kind");
+      }
     }
 
-    public static Doc Parse(string comment) {
-      Console.WriteLine("Comment: " + comment);
-      var parts = SplitParts(comment);
-      if (parts.Count <= 0) {
-        return new Doc {
-          body = null,
-          tags = new List<DocTag>(),
-        };
-      }
-      var body = parts[0];
-      var tags = new List<DocTag>();
-      Console.WriteLine("Body: " + body);
-      for (int i = 1; i < parts.Count; i++) {
-        tags.Add(ParseTag(parts[i]));
-      }
-      return new Doc {
-        body = body,
-        tags = tags,
-      };
-    }
-
-    [DataMember]
     public string body;
-    [DataMember]
-    public List<DocTag> tags;
+    public Dictionary<string, string> vparams;
+    public Dictionary<string, string> tparams;
+    public Dictionary<string, string> returns;
 
   }
 

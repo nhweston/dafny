@@ -3262,6 +3262,7 @@ namespace Microsoft.Dafny {
     }
     [Peer]
     ParentType parent;
+    public string DocComment;
     public ParentType Parent {
       get {
         return parent;
@@ -5725,6 +5726,7 @@ namespace Microsoft.Dafny {
       }
     }
     public readonly bool IsOld;
+    public string DocComment;
 
     public Formal(IToken tok, string name, Type type, bool inParam, bool isGhost, bool isOld = false)
       : base(tok, name, type, isGhost) {

@@ -41,8 +41,6 @@ namespace DafnyServer {
             SymbolType = SymbolInformation.Type.Predicate,
             StartToken = predicate.tok,
             EndToken = predicate.BodyEndTok,
-            DocComment = predicate.DocComment,
-            Doc = Doc.Parse(predicate.DocComment),
           };
           information.Add(predicateSymbol);
 
@@ -58,8 +56,6 @@ namespace DafnyServer {
             EndLine = fn.BodyEndTok.line,
             EndPosition = fn.BodyEndTok.pos,
             EndToken = fn.BodyEndTok,
-            DocComment = fn.DocComment,
-            Doc = Doc.Parse(fn.DocComment),
           };
           information.Add(functionSymbol);
         } else {
@@ -83,8 +79,6 @@ namespace DafnyServer {
             EndLine = m.BodyEndTok.line,
             EndPosition = m.BodyEndTok.pos,
             EndToken = m.BodyEndTok,
-            DocComment = m.DocComment,
-            Doc = Doc.Parse(m.DocComment),
           };
           information.Add(methodSymbol);
         }
@@ -102,8 +96,6 @@ namespace DafnyServer {
           SymbolType = SymbolInformation.Type.Field,
           StartToken = fs.tok,
           References = FindFieldReferencesInternal(fs.Name, fs.EnclosingClass.Name, fs.EnclosingClass.Module.Name),
-          DocComment = fs.DocComment,
-          Doc = Doc.Parse(fs.DocComment),
         };
         if (fs.Type is UserDefinedType) {
           var userType = fs.Type as UserDefinedType;
@@ -123,23 +115,17 @@ namespace DafnyServer {
             SymbolType = SymbolInformation.Type.Class,
             StartToken = cs.tok,
             EndToken = cs.BodyEndTok,
-            DocComment = cs.DocComment,
-            Doc = Doc.Parse(cs.DocComment),
           };
           information.Add(classSymbol);
         }
       }
     }
 
-    private static ICollection<SpecInformation> ParseContracts(IEnumerable<MaybeFreeExpression> contractClauses) {
-      var requires = new List<SpecInformation>();
+    private static ICollection<string> ParseContracts(IEnumerable<MaybeFreeExpression> contractClauses) {
+      var requires = new List<string>();
       foreach (var maybeFreeExpression in contractClauses) {
         var expr = maybeFreeExpression.E;
-        var docComment = maybeFreeExpression.DocComment;
-        requires.Add(new SpecInformation {
-          Expression = Printer.ExprToString(maybeFreeExpression.E),
-          Doc = Doc.Parse(maybeFreeExpression.DocComment),
-        });
+        requires.Add(Printer.ExprToString(maybeFreeExpression.E));
       }
       return requires;
     }
@@ -171,7 +157,6 @@ namespace DafnyServer {
                   SymbolType = SymbolInformation.Type.Definition,
                   StartToken = method.BodyStartTok,
                   EndToken = method.BodyEndTok,
-                  DocComment = method.DocComment,
                 });
               }
             }
@@ -412,18 +397,15 @@ namespace DafnyServer {
       [DataMember(Name = "References")]
       public ICollection<ReferenceInformation> References { get; set; }
       [DataMember(Name = "Requires")]
-      public ICollection<SpecInformation> Requires { get; set; }
+      public ICollection<string> Requires { get; set; }
       [DataMember(Name = "Ensures")]
-      public ICollection<SpecInformation> Ensures { get; set; }
+      public ICollection<string> Ensures { get; set; }
       [DataMember(Name = "Call")]
       public string Call { get; set; }
       [DataMember(Name = "ReferencedClass")]
       public string ReferencedClass { get; set; }
       [DataMember(Name = "ReferencedModule")]
       public string ReferencedModule { get; set; }
-      [DataMember(Name = "DocComment")]
-      public string DocComment { get; set; }
-      [DataMember(Name = "Doc")]
       public Doc Doc { get; set; }
       [DataMember(Name = "SymbolType", Order = 1)]
       private string SymbolTypeString {
