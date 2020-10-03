@@ -108,10 +108,22 @@ namespace DafnyServer {
 
     private FormalInfo GetFormalInfo(Formal f, Doc doc, bool isOut) {
       Console.WriteLine("Formal");
+      Console.WriteLine(doc == null);
+      if (doc != null) {
+        Console.WriteLine(doc.returns == null);
+        Console.WriteLine(doc.vparams == null);
+      }
+      string fdoc = null;
+      if (doc != null) {
+        var dict = isOut ? doc.returns : doc.vparams;
+        if (dict != null) {
+          fdoc = dict[f.Name];
+        }
+      }
       var r = new FormalInfo {
         name = f.Name,
         typ = f.Type.ToString(),
-        doc = doc == null ? null : (isOut ? doc.returns : doc.vparams)[f.Name],
+        doc = fdoc,
       };
       Console.WriteLine(ConvertToJson(r));
       return r;
@@ -143,7 +155,7 @@ namespace DafnyServer {
         name = mod.Name,
         modifiers = mod.IsAbstract ? new[] { "abstract" } : new string[] { },
         refines = mod.RefinementBaseName?.val,
-        decls = this.CollectTopLevelDecls(mod).Select(GetDeclInfo).ToList(),
+        decls = this.CollectTopLevelDecls(mod).Select(GetDeclInfo).Where(d => d != null).ToList(),
         doc = (new Doc(docComment)).body,
       };
       Console.WriteLine(ConvertToJson(r));
