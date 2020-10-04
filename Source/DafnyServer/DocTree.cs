@@ -8,6 +8,7 @@ using Program = Microsoft.Dafny.Program;
 using System.IO;
 using System.Runtime.Serialization.Json;
 using System.Text;
+using IToken = Microsoft.Boogie.IToken;
 
 namespace DafnyServer {
   
@@ -26,17 +27,47 @@ namespace DafnyServer {
       _program = program;
     }
 
-    public ICollection<DeclInfo> GetDocTree() {
+    public ICollection<FileInfo> GetDocTree() {
       Console.WriteLine("Constructing doc tree");
       var mod = _program.DefaultModuleDef;
-      return this.CollectTopLevelDecls(mod).Select(GetDeclInfo).ToList();
+      var files = new Dictionary<string, FileInfo>();
+      return this.CollectTopLevelDecls(mod);
     }
 
-    private ICollection<Declaration> CollectTopLevelDecls(ModuleDefinition mod) {
+    private ICollection<FileInfo> CollectTopLevelDecls(ModuleDefinition mod) {
+      // collect all top-level declarations
+      var all = new List<Declaration>();
+      ClassDecl dfcl = null;
+      foreach (var decl in mod.TopLevelDecls) {
+        if (decl is ClassDecl cl && cl.IsDefaultClass) {
+          dfcl = cl;
+          continue;
+        }
+        all.Add(decl);
+      }
+      foreach (var member in dfcl.Members) {
+        all.Add(member);
+      }
+      // associate files to declarations
+      var files = new Dictionary<string, FileInfo>();
+      foreach (var decl in all) {
+        var fname = decl.tok.filename;
+        if (!files.ContainsKey(fname)) {
+          files[fname] = new FileInfo {
+            path = fname,
+            decls = new List<DeclInfo>(),
+          };
+        }
+        files[fname].decls.Add(GetDeclInfo(decl));
+      }
+      return files.Values;
+    }
+
+    private ICollection<Declaration> CollectDecls(ModuleDefinition mod) {
       var result = new List<Declaration>();
       ClassDecl dfcl = null;
       foreach (var decl in mod.TopLevelDecls) {
-        if (decl is ClassDecl cl) {
+        if (decl is ClassDecl cl && cl.IsDefaultClass) {
           dfcl = cl;
           continue;
         }
@@ -106,13 +137,58 @@ namespace DafnyServer {
       return r;
     }
 
+    // private void DebugType(Microsoft.Dafny.Type t) {
+    //   var arrayType = t.AsArrayType;
+    //   if (arrayType != null) {
+    //     Console.WriteLine("array type");
+    //     Console.WriteLine(arrayType.Name);
+    //     Console.WriteLine(String.Join(", ", arrayType.TypeArgs.Select(ta => "" + ta)));
+    //     Console.WriteLine(arrayType.Dims);
+    //   }
+    //   var arrowType = t.AsArrowType;
+    //   if (arrowType != null) {
+    //     Console.WriteLine("arrow type");
+    //     Console.WriteLine(arrowType.Name);
+    //     Console.WriteLine(String.Join(", ", arrowType.TypeArgs.Select(ta => "" + ta)));
+    //   }
+    //   var datatype = t.AsDatatype;
+    //   if (datatype != null) {
+    //     Console.WriteLine("(co)datatype");
+    //     Console.WriteLine(datatype.Name);
+    //     Console.WriteLine(String.Join(", ", datatype.TypeArgs.Select(ta => "" + ta)));
+    //   }
+    //   var collType = t.AsCollectionType;
+    //   if (collType != null) {
+    //     Console.WriteLine("collection");
+    //     Console.WriteLine(collType.CollectionTypeName);
+    //     Console.WriteLine(String.Join(", ", collType.TypeArgs.Select(ta => "" + ta)));
+    //   }
+    //   var newType = t.AsNewtype;
+    //   if (newType != null) {
+    //     Console.WriteLine("newtype");
+    //     Console.WriteLine(newType.Name);
+    //   }
+    //   var tlType = t.AsTopLevelTypeWithMembersBypassInternalSynonym;
+    //   if (tlType != null) {
+    //     Console.WriteLine("top-level type");
+    //     Console.WriteLine(tlType.Name);
+    //     Console.WriteLine(String.Join(", ", (t as UserDefinedType).TypeArgs.Select(ta => "" + ta)));
+    //     return;
+    //   }
+    //   var tp = t.AsTypeParameter;
+    //   if (tp != null) {
+    //     Console.WriteLine("type parameter");
+    //     Console.WriteLine(tp.Name);
+    //     Console.WriteLine(tp.CompileName);
+    //   }
+    //   var ts = t.AsTypeSynonym;
+    //   if (ts != null) {
+    //     Console.WriteLine("type synonym");
+    //     Console.WriteLine(ts.Name);
+    //   }
+    // }
+
     private FormalInfo GetFormalInfo(Formal f, Doc doc, bool isOut) {
-      Console.WriteLine("Formal");
-      Console.WriteLine(doc == null);
-      if (doc != null) {
-        Console.WriteLine(doc.returns == null);
-        Console.WriteLine(doc.vparams == null);
-      }
       string fdoc = null;
       if (doc != null) {
         var dict = isOut ? doc.returns : doc.vparams;
@@ -120,6 +196,7 @@ namespace DafnyServer {
           fdoc = dict[f.Name];
         }
       }
+      // DebugType(f.Type);
       var r = new FormalInfo {
         name = f.Name,
         typ = f.Type.ToString(),
@@ -133,7 +210,7 @@ namespace DafnyServer {
       Console.WriteLine("Type parameter");
       var r = new TypeParamInfo {
         name = tp.Name,
-        doc = doc.tparams[tp.Name],
+        doc = doc == null || doc.tparams == null ? null : doc.tparams[tp.Name],
       };
       Console.WriteLine(ConvertToJson(r));
       return r;
@@ -149,13 +226,73 @@ namespace DafnyServer {
       return r;
     }
 
+    private TypeRefInfo GetTypeRefInfo(Microsoft.Dafny.Type t) {
+      if (t.IsArrayType) {
+        var at = t.AsArrayType;
+        return new TypeRefInfo {
+          name = "array",
+          tparams = { GetTypeRefInfo(t.TypeArgs[0]) },
+        };
+      }
+      if (t.AsCollectionType != null) {
+        var ct = t.AsCollectionType;
+        return new TypeRefInfo {
+          name = ct.CollectionTypeName,
+          tparams = t.TypeArgs.Select(GetTypeRefInfo).ToList(),
+        };
+      }
+      if (t.IsArrowType) {
+        var at = t.AsArrowType;
+        return new TypeRefInfo {
+          name = at.Name,
+          tparams = t.TypeArgs.Select(GetTypeRefInfo).ToList(),
+          special = "Function"
+        };
+      }
+      if (t.IsTypeParameter) {
+        var tp = t.AsTypeParameter;
+        return new TypeRefInfo {
+          name = tp.Name,
+          token = GetTokenInfo(tp.tok),
+          tparams = { },
+        };
+      }
+      if (t.IsDatatype) {
+        var dt = t.AsDatatype;
+        if (dt is TupleTypeDecl tt) {
+          return new TypeRefInfo {
+            name = dt.Name,
+            tparams = t.TypeArgs.Select(GetTypeRefInfo).ToList(),
+          };
+        }
+      }
+      if (t.IsNonNullRefType) {
+        var udt = t.AsNonNullRefType;
+        return new TypeRefInfo {
+          name = udt.Name,
+          token = GetTokenInfo(udt.tok),
+          tparams = t.TypeArgs.Select(GetTypeRefInfo).ToList(),
+        };
+      }
+      Console.WriteLine("Warning: Unknown type reference");
+      return null;
+    }
+
+    private TokenInfo GetTokenInfo(IToken tok) {
+      return new TokenInfo {
+        file = tok.filename,
+        line = tok.line,
+        col = tok.col,
+      };
+    }
+
     private ModuleInfo GetModuleInfo(ModuleDefinition mod, string docComment = null) {
       Console.WriteLine("Module: " + mod.Name);
       var r = new ModuleInfo {
         name = mod.Name,
         modifiers = mod.IsAbstract ? new[] { "abstract" } : new string[] { },
         refines = mod.RefinementBaseName?.val,
-        decls = this.CollectTopLevelDecls(mod).Select(GetDeclInfo).Where(d => d != null).ToList(),
+        decls = this.CollectDecls(mod).Select(GetDeclInfo).Where(d => d != null).ToList(),
         doc = (new Doc(docComment)).body,
       };
       Console.WriteLine(ConvertToJson(r));
@@ -350,9 +487,50 @@ namespace DafnyServer {
     public ICollection<FormalInfo> vparams;
   }
 
+  [Serializable]
+  [DataContract]
+  public class TypeRefInfo {
+    [DataMember]
+    public string name;
+    [DataMember]
+    public TokenInfo token;
+    [DataMember]
+    public ICollection<TypeRefInfo> tparams;
+    [DataMember]
+    public string special;
+  }
+
+  [Serializable]
+  [DataContract]
+  public class TokenInfo {
+    [DataMember]
+    public string file;
+    [DataMember]
+    public int line;
+    [DataMember]
+    public int col;
+  }
+
   /////////////
   // MODULES //
   /////////////
+
+  [Serializable]
+  [DataContract]
+  [KnownType(typeof(ModuleInfo))]
+  [KnownType(typeof(ClassInfo))]
+  [KnownType(typeof(DatatypeInfo))]
+  [KnownType(typeof(TypeSynonymInfo))]
+  [KnownType(typeof(NewtypeInfo))]
+  [KnownType(typeof(FunctionInfo))]
+  [KnownType(typeof(MethodInfo))]
+  [KnownType(typeof(FieldInfo))]
+  public class FileInfo: DeclInfo {
+    [DataMember]
+    public string path;
+    [DataMember]
+    public ICollection<DeclInfo> decls;
+  }
 
   [Serializable]
   [DataContract]
