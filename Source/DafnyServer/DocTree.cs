@@ -137,57 +137,6 @@ namespace DafnyServer {
       return r;
     }
 
-    // private void DebugType(Microsoft.Dafny.Type t) {
-    //   var arrayType = t.AsArrayType;
-    //   if (arrayType != null) {
-    //     Console.WriteLine("array type");
-    //     Console.WriteLine(arrayType.Name);
-    //     Console.WriteLine(String.Join(", ", arrayType.TypeArgs.Select(ta => "" + ta)));
-    //     Console.WriteLine(arrayType.Dims);
-    //   }
-    //   var arrowType = t.AsArrowType;
-    //   if (arrowType != null) {
-    //     Console.WriteLine("arrow type");
-    //     Console.WriteLine(arrowType.Name);
-    //     Console.WriteLine(String.Join(", ", arrowType.TypeArgs.Select(ta => "" + ta)));
-    //   }
-    //   var datatype = t.AsDatatype;
-    //   if (datatype != null) {
-    //     Console.WriteLine("(co)datatype");
-    //     Console.WriteLine(datatype.Name);
-    //     Console.WriteLine(String.Join(", ", datatype.TypeArgs.Select(ta => "" + ta)));
-    //   }
-    //   var collType = t.AsCollectionType;
-    //   if (collType != null) {
-    //     Console.WriteLine("collection");
-    //     Console.WriteLine(collType.CollectionTypeName);
-    //     Console.WriteLine(String.Join(", ", collType.TypeArgs.Select(ta => "" + ta)));
-    //   }
-    //   var newType = t.AsNewtype;
-    //   if (newType != null) {
-    //     Console.WriteLine("newtype");
-    //     Console.WriteLine(newType.Name);
-    //   }
-    //   var tlType = t.AsTopLevelTypeWithMembersBypassInternalSynonym;
-    //   if (tlType != null) {
-    //     Console.WriteLine("top-level type");
-    //     Console.WriteLine(tlType.Name);
-    //     Console.WriteLine(String.Join(", ", (t as UserDefinedType).TypeArgs.Select(ta => "" + ta)));
-    //     return;
-    //   }
-    //   var tp = t.AsTypeParameter;
-    //   if (tp != null) {
-    //     Console.WriteLine("type parameter");
-    //     Console.WriteLine(tp.Name);
-    //     Console.WriteLine(tp.CompileName);
-    //   }
-    //   var ts = t.AsTypeSynonym;
-    //   if (ts != null) {
-    //     Console.WriteLine("type synonym");
-    //     Console.WriteLine(ts.Name);
-    //   }
-    // }
-
     private FormalInfo GetFormalInfo(Formal f, Doc doc, bool isOut) {
       string fdoc = null;
       if (doc != null) {
@@ -196,7 +145,6 @@ namespace DafnyServer {
           fdoc = dict[f.Name];
         }
       }
-      // DebugType(f.Type);
       var r = new FormalInfo {
         name = f.Name,
         typ = f.Type.ToString(),
@@ -294,6 +242,7 @@ namespace DafnyServer {
         refines = mod.RefinementBaseName?.val,
         decls = this.CollectDecls(mod).Select(GetDeclInfo).Where(d => d != null).ToList(),
         doc = (new Doc(docComment)).body,
+        token = GetTokenInfo(mod.tok),
       };
       Console.WriteLine(ConvertToJson(r));
       return r;
@@ -309,6 +258,7 @@ namespace DafnyServer {
         xtnds = cl.ParentTraits.Select(t => t.ToString()).ToList(),
         members = cl.Members.Select(m => GetDeclInfo(m)).ToList(),
         doc = doc.body,
+        token = GetTokenInfo(cl.tok),
       };
       Console.WriteLine(ConvertToJson(r));
       return r;
@@ -336,6 +286,7 @@ namespace DafnyServer {
         tparams = ts.TypeArgs.Select(tp => GetTypeParamInfo(tp, doc)).ToList(),
         rhs = ts.Rhs.ToString(),
         doc = doc.body,
+        token = GetTokenInfo(ts.tok),
       };
       Console.WriteLine(ConvertToJson(r));
       return r;
@@ -349,6 +300,7 @@ namespace DafnyServer {
         tparams = ot.TypeArgs.Select(tp => GetTypeParamInfo(tp, doc)).ToList(),
         rhs = null,
         doc = doc.body,
+        token = GetTokenInfo(ot.tok),
       };
       Console.WriteLine(ConvertToJson(r));
       return r;
@@ -362,6 +314,7 @@ namespace DafnyServer {
         btyp = nt.BaseType.ToString(),
         constraint = Printer.ExprToString(nt.Constraint),
         doc = doc.body,
+        token = GetTokenInfo(nt.tok),
       };
       Console.WriteLine(ConvertToJson(r));
       return r;
@@ -395,6 +348,7 @@ namespace DafnyServer {
         rtyp = f.ResultType.ToString(),
         spec = spec,
         doc = doc.body,
+        token = GetTokenInfo(f.tok),
       };
       Console.WriteLine(ConvertToJson(r));
       return r;
@@ -425,6 +379,7 @@ namespace DafnyServer {
         returns = m.Outs.Select(vp => GetFormalInfo(vp, doc, true)).ToList(),
         spec = spec,
         doc = doc.body,
+        token = GetTokenInfo(m.tok),
       };
       Console.WriteLine(ConvertToJson(r));
       return r;
@@ -437,6 +392,7 @@ namespace DafnyServer {
         name = f.Name,
         typ = f.Type.ToString(),
         doc = doc.body,
+        token = GetTokenInfo(f.tok),
       };
       Console.WriteLine(ConvertToJson(r));
       return r;
@@ -553,6 +509,8 @@ namespace DafnyServer {
     public ICollection<DeclInfo> decls;
     [DataMember]
     public string doc;
+    [DataMember]
+    public TokenInfo token;
   }
 
   [Serializable]
@@ -573,6 +531,8 @@ namespace DafnyServer {
     public ICollection<DeclInfo> members;
     [DataMember]
     public string doc;
+    [DataMember]
+    public TokenInfo token;
   }
 
   [Serializable]
@@ -588,6 +548,8 @@ namespace DafnyServer {
     public ICollection<CtorInfo> ctors;
     [DataMember]
     public string doc;
+    [DataMember]
+    public TokenInfo token;
   }
 
   [Serializable]
@@ -601,6 +563,8 @@ namespace DafnyServer {
     public string rhs;
     [DataMember]
     public string doc;
+    [DataMember]
+    public TokenInfo token;
   }
 
   [Serializable]
@@ -614,6 +578,8 @@ namespace DafnyServer {
     public string constraint;
     [DataMember]
     public string doc;
+    [DataMember]
+    public TokenInfo token;
   }
 
   [Serializable]
@@ -635,6 +601,8 @@ namespace DafnyServer {
     public ICollection<SpecInfo> spec;
     [DataMember]
     public string doc;
+    [DataMember]
+    public TokenInfo token;
   }
 
   [Serializable]
@@ -656,6 +624,8 @@ namespace DafnyServer {
     public ICollection<SpecInfo> spec;
     [DataMember]
     public string doc;
+    [DataMember]
+    public TokenInfo token;
   }
 
   [Serializable]
@@ -667,6 +637,8 @@ namespace DafnyServer {
     public string typ;
     [DataMember]
     public string doc;
+    [DataMember]
+    public TokenInfo token;
   }
 
 }
