@@ -138,16 +138,17 @@ namespace DafnyServer {
     }
 
     private FormalInfo GetFormalInfo(Formal f, Doc doc, bool isOut) {
+      Console.WriteLine("Formal: " + f.Name);
       string fdoc = null;
       if (doc != null) {
         var dict = isOut ? doc.returns : doc.vparams;
         if (dict != null) {
-          fdoc = dict[f.Name];
+          fdoc = dict.GetValueOrDefault(f.Name);
         }
       }
       var r = new FormalInfo {
         name = f.Name,
-        typ = f.Type.ToString(),
+        typ = GetTypeRefInfo(f.Type),
         doc = fdoc,
       };
       Console.WriteLine(ConvertToJson(r));
@@ -159,6 +160,7 @@ namespace DafnyServer {
       var r = new TypeParamInfo {
         name = tp.Name,
         doc = doc == null || doc.tparams == null ? null : doc.tparams[tp.Name],
+        token = GetTokenInfo(tp.tok),
       };
       Console.WriteLine(ConvertToJson(r));
       return r;
@@ -194,7 +196,7 @@ namespace DafnyServer {
         return new TypeRefInfo {
           name = at.Name,
           tparams = t.TypeArgs.Select(GetTypeRefInfo).ToList(),
-          special = "Function"
+          special = "Function",
         };
       }
       if (t.IsTypeParameter) {
@@ -202,7 +204,7 @@ namespace DafnyServer {
         return new TypeRefInfo {
           name = tp.Name,
           token = GetTokenInfo(tp.tok),
-          tparams = { },
+          tparams = new TypeRefInfo[0],
         };
       }
       if (t.IsDatatype) {
@@ -211,6 +213,7 @@ namespace DafnyServer {
           return new TypeRefInfo {
             name = dt.Name,
             tparams = t.TypeArgs.Select(GetTypeRefInfo).ToList(),
+            special = "Tuple",
           };
         }
       }
@@ -222,8 +225,10 @@ namespace DafnyServer {
           tparams = t.TypeArgs.Select(GetTypeRefInfo).ToList(),
         };
       }
-      Console.WriteLine("Warning: Unknown type reference");
-      return null;
+      return new TypeRefInfo {
+        name = t.ToString(),
+        tparams = new TypeRefInfo[0],
+      };
     }
 
     private TokenInfo GetTokenInfo(IToken tok) {
@@ -420,7 +425,7 @@ namespace DafnyServer {
     [DataMember]
     public string name;
     [DataMember]
-    public string typ;
+    public TypeRefInfo typ;
     [DataMember]
     public string doc;
   }
@@ -432,6 +437,8 @@ namespace DafnyServer {
     public string name;
     [DataMember]
     public string doc;
+    [DataMember]
+    public TokenInfo token;
   }
 
   [Serializable]

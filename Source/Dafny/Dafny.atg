@@ -601,6 +601,22 @@ bool IsType(ref IToken pt) {
   }
 }
 
+bool IsSpec() {
+  var x = la;
+  if (la.kind == _docComment) {
+    x = scanner.Peek();
+  }
+  switch (x.kind) {
+    case _requires:
+    case _ensures:
+    case _modifies:
+    case _reads:
+    case _decreases:
+      return true;
+    default:
+      return false;
+  }
+}
 
 void ConvertKeywordTokenToIdent() {
   var oldKind = la.kind;
@@ -1559,7 +1575,7 @@ MethodDecl<DeclModifierData dmod, bool allowConstructor, bool isWithinAbstractMo
     ]
   | "..."                                       (. signatureEllipsis = t; .)
   )
-  { MethodSpec<req, mod, ens, dec, ref decAttrs, ref modAttrs, caption, isConstructor> }
+  { IF(IsSpec()) MethodSpec<req, mod, ens, dec, ref decAttrs, ref modAttrs, caption, isConstructor> }
   [ IF(isConstructor)
     (. DividedBlockStmt dividedBody; .)
     DividedBlockStmt<out dividedBody, out bodyStart, out bodyEnd>
@@ -1987,7 +2003,7 @@ FunctionDecl<DeclModifierData dmod, bool isWithinAbstractModule, string dc, out 
   )
 
   (. decreases = isIndPredicate || isCoPredicate ? null : new List<Expression/*!*/>(); .)
-  { FunctionSpec<reqs, reads, ens, decreases> }
+  { IF(IsSpec()) FunctionSpec<reqs, reads, ens, decreases> }
   [ FunctionBody<out body, out bodyStart, out bodyEnd>
   ]
   (. if (!isWithinAbstractModule && DafnyOptions.O.DisallowSoundnessCheating && body == null && ens.Count > 0 &&

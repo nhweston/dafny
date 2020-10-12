@@ -19,18 +19,19 @@ namespace DafnyServer {
       StringBuilder sb = new StringBuilder();
       List<string> result = new List<string>();
       bool escape = false;
-      foreach (char c in comment.Trim()) {
-        if (escape) {
-          if (c == '@') {
-            result.Add(sb.ToString().Trim());
-            sb.Clear();
-            continue;
-          }
-          escape = c == '\\';
-          sb.Append(c);
+      foreach (char c in comment.TrimEnd()) {
+        if (!escape && c == '@') {
+          result.Add(sb.ToString().Trim());
+          sb.Clear();
+          continue;
         }
+        escape = c == '\\';
+        sb.Append(c);
       }
-      result.Add(sb.ToString().Trim());
+      result.Add(sb.ToString().TrimEnd());
+      foreach (var line in result) {
+        Console.WriteLine(line);
+      }
       return result;
     }
 
@@ -48,13 +49,17 @@ namespace DafnyServer {
       }
     }
 
-    public void ParseBody(string body) {
+    public void ParseBody(string b) {
       StringBuilder sb = new StringBuilder();
-      foreach (string rawLine in body.Split('\n')) {
+      foreach (string rawLine in b.Split('\n')) {
+        Console.WriteLine("RAW: " + rawLine);
         string line = LINE_REGEX.Match(rawLine).Groups[2].Value.Trim();
+        // Console.WriteLine("LINE: " + line);
+        Console.WriteLine("OUT: " + line);
         sb.AppendLine(line);
       }
       body = sb.ToString().Trim();
+      // Console.WriteLine(body);
     }
 
     public void ParseTag(string s) {
