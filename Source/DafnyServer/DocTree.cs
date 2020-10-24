@@ -300,8 +300,10 @@ namespace DafnyServer {
     private ImportInfo GetImportInfo(AliasModuleDecl am) {
       Console.WriteLine("Import: " + am.Name);
       var r = new ImportInfo {
+        name = am.Name,
         target = GetTokenInfo(am.Module.tok),
         opened = am.Opened,
+        token = GetTokenInfo(am.tok),
       };
       Console.WriteLine(ConvertToJson(r));
       return r;
@@ -610,9 +612,13 @@ namespace DafnyServer {
   [DataContract]
   public class ImportInfo: DeclInfo {
     [DataMember]
+    public string name;
+    [DataMember]
     public TokenInfo target;
     [DataMember]
     public bool opened;
+    [DataMember]
+    public TokenInfo token;
   }
 
   [Serializable]
