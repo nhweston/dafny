@@ -145,6 +145,7 @@
     <Compile Include="Doc.cs" />
     <Compile Include="DocTree.cs" />
     <Compile Include="SymbolTable.cs" />
+    <Compile Include="SpecRewriter.cs" />
     <Compile Include="Utilities.cs" />
     <Compile Include="VerificationTask.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

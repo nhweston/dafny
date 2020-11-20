@@ -41,6 +41,9 @@ namespace DafnyServer {
             SymbolType = SymbolInformation.Type.Predicate,
             StartToken = predicate.tok,
             EndToken = predicate.BodyEndTok,
+            Requires = ParseContracts(predicate.Req),
+            Ensures = ParseContracts(predicate.Ens),
+            Doc = GetSymbolDoc(new Doc(predicate.DocComment)),
           };
           information.Add(predicateSymbol);
 
@@ -56,6 +59,9 @@ namespace DafnyServer {
             EndLine = fn.BodyEndTok.line,
             EndPosition = fn.BodyEndTok.pos,
             EndToken = fn.BodyEndTok,
+            Requires = ParseContracts(fn.Req),
+            Ensures = ParseContracts(fn.Ens),
+            Doc = GetSymbolDoc(new Doc(fn.DocComment)),
           };
           information.Add(functionSymbol);
         } else {
@@ -70,8 +76,6 @@ namespace DafnyServer {
             ParentClass = m.EnclosingClass.Name,
             SymbolType = SymbolInformation.Type.Method,
             StartToken = m.tok,
-            Ensures = ParseContracts(m.Ens),
-            Requires = ParseContracts(m.Req),
             References =
                   FindMethodReferencesInternal(m.EnclosingClass.Module.Name + "." + m.EnclosingClass.Name + "." +
                                    m.Name),
@@ -79,6 +83,9 @@ namespace DafnyServer {
             EndLine = m.BodyEndTok.line,
             EndPosition = m.BodyEndTok.pos,
             EndToken = m.BodyEndTok,
+            Requires = ParseContracts(m.Req),
+            Ensures = ParseContracts(m.Ens),
+            Doc = GetSymbolDoc(new Doc(m.DocComment)),
           };
           information.Add(methodSymbol);
         }
@@ -96,6 +103,7 @@ namespace DafnyServer {
           SymbolType = SymbolInformation.Type.Field,
           StartToken = fs.tok,
           References = FindFieldReferencesInternal(fs.Name, fs.EnclosingClass.Name, fs.EnclosingClass.Module.Name),
+          Doc = GetSymbolDoc(new Doc(fs.DocComment)),
         };
         if (fs.Type is UserDefinedType) {
           var userType = fs.Type as UserDefinedType;
@@ -115,21 +123,59 @@ namespace DafnyServer {
             SymbolType = SymbolInformation.Type.Class,
             StartToken = cs.tok,
             EndToken = cs.BodyEndTok,
+            Doc = GetSymbolDoc(new Doc(cs.DocComment)),
           };
           information.Add(classSymbol);
         }
       }
     }
 
-    private static ICollection<string> ParseContracts(IEnumerable<MaybeFreeExpression> contractClauses) {
-      var requires = new List<string>();
+    private static ICollection<SpecInformation> ParseContracts(IEnumerable<MaybeFreeExpression> contractClauses) {
+      Console.WriteLine("parse contracts");
+      var requires = new List<SpecInformation>();
       foreach (var maybeFreeExpression in contractClauses) {
         var expr = maybeFreeExpression.E;
-        requires.Add(Printer.ExprToString(maybeFreeExpression.E));
+        var docComment = maybeFreeExpression.DocComment;
+        requires.Add(new SpecInformation {
+          Expression = Printer.ExprToString(maybeFreeExpression.E),
+          Doc = (new Doc(maybeFreeExpression.DocComment)).body,
+        });
       }
+      Console.WriteLine("end parse contracts");
       return requires;
     }
 
+    private static SymbolDoc GetSymbolDoc(Doc doc) {
+      Console.WriteLine("get symbol doc");
+      var tags = new List<SymbolDocTag>();
+      if (doc.vparams != null) foreach (var e in doc.vparams) {
+        tags.Add(new SymbolDocTag {
+          Kind = "param",
+          Name = e.Key,
+          Body = e.Value,
+        });
+      }
+      if (doc.tparams != null) foreach (var e in doc.tparams) {
+        tags.Add(new SymbolDocTag {
+          Kind = "tparam",
+          Name = e.Key,
+          Body = e.Value,
+        });
+      }
+      if (doc.returns != null) foreach (var e in doc.returns) {
+        tags.Add(new SymbolDocTag {
+          Kind = "returns",
+          Name = e.Key,
+          Body = e.Value,
+        });
+      }
+      var result = new SymbolDoc {
+        Body = doc.body,
+        Tags = tags,
+      };
+      Console.WriteLine("end get symbol doc");
+      return result;
+    }
     private static IEnumerable<SymbolInformation> ResolveLocalDefinitions(IEnumerable<Statement> statements, Method method) {
       var information = new List<SymbolInformation>();
 
@@ -365,13 +411,6 @@ namespace DafnyServer {
       return information;
     }
 
-    public class SpecInformation {
-      [DataMember(Name = "Expression")]
-      public string Expression { get; set; }
-      [DataMember(Name = "DocComment")]
-      public Doc Doc { get; set; }
-    }
-
     [Serializable]
     [DataContract]
     public class SymbolInformation {
@@ -397,16 +436,17 @@ namespace DafnyServer {
       [DataMember(Name = "References")]
       public ICollection<ReferenceInformation> References { get; set; }
       [DataMember(Name = "Requires")]
-      public ICollection<string> Requires { get; set; }
+      public ICollection<SpecInformation> Requires { get; set; }
       [DataMember(Name = "Ensures")]
-      public ICollection<string> Ensures { get; set; }
+      public ICollection<SpecInformation> Ensures { get; set; }
       [DataMember(Name = "Call")]
       public string Call { get; set; }
       [DataMember(Name = "ReferencedClass")]
       public string ReferencedClass { get; set; }
       [DataMember(Name = "ReferencedModule")]
       public string ReferencedModule { get; set; }
-      public Doc Doc { get; set; }
+      [DataMember]
+      public SymbolDoc Doc { get; set; }
       [DataMember(Name = "SymbolType", Order = 1)]
       private string SymbolTypeString {
         get { return Enum.GetName(typeof(Type), SymbolType); }
@@ -442,6 +482,31 @@ namespace DafnyServer {
       public SymbolInformation() {
         References = new List<ReferenceInformation>();
       }
+    }
+
+    [Serializable]
+    [DataContract]
+    public class SymbolDoc {
+      [DataMember]
+      public string Body;
+      [DataMember]
+      public ICollection<SymbolDocTag> Tags;
+    }
+
+    [Serializable]
+    [DataContract]
+    public class SymbolDocTag {
+      [DataMember]
+      public string Kind;
+      [DataMember]
+      public string Name;
+      [DataMember]
+      public string Body;
+    }
+
+    public class SpecInformation {
+      public string Expression { get; set; }
+      public string Doc { get; set; }
     }
 
     [Serializable]

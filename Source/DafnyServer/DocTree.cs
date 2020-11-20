@@ -217,10 +217,14 @@ namespace DafnyServer {
           Console.WriteLine(tp);
         }
         Console.WriteLine(t.ToString());
-        return new TypeRefInfo {
+        var tps = new List<TypeRefInfo>();
+        tps.Add(GetTypeRefInfo(t.TypeArgs[0]));
+        var r0 = new TypeRefInfo {
           name = "array",
-          tparams = { GetTypeRefInfo(t.TypeArgs[0]) },
+          tparams = tps,
         };
+        Console.WriteLine(ConvertToJson(r0));
+        return r0;
       }
       if (t.AsCollectionType != null) {
         Console.WriteLine("collection type");
@@ -269,13 +273,16 @@ namespace DafnyServer {
         };
       }
       Console.WriteLine("other type");
-      return new TypeRefInfo {
+      var r = new TypeRefInfo {
         name = t.ToString(),
         tparams = new TypeRefInfo[0],
       };
+      Console.WriteLine(ConvertToJson(r));
+      return r;
     }
 
-    private TokenInfo GetTokenInfo(IToken tok) {
+    public static TokenInfo GetTokenInfo(IToken tok) {
+      Console.WriteLine("Token: " + tok.ToString());
       return new TokenInfo {
         file = tok.filename.Split('[')[0],
         line = tok.line,
@@ -411,6 +418,15 @@ namespace DafnyServer {
         doc = doc.body,
         token = GetTokenInfo(f.tok),
       };
+      Console.WriteLine("***");
+      Console.WriteLine(f.Body.GetType());
+      if (f.Body is ApplySuffix asx) {
+        Console.WriteLine(asx.Lhs);
+        Console.WriteLine(Printer.ExprToString(asx.Lhs));
+        Console.WriteLine(asx.ResolvedExpression);
+        Console.WriteLine(asx.ResolvedExpression.GetType());
+      }
+      Console.WriteLine("***");
       Console.WriteLine(ConvertToJson(r));
       return r;
     }
