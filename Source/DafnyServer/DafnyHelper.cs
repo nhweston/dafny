@@ -97,6 +97,16 @@ namespace Microsoft.Dafny {
       return isVerified;
     }
 
+    public void DocTree() {
+      ServerUtils.ApplyArgs(args, reporter);
+      if (Parse() && Resolve()) {
+        var docTree = new DocTree(dafnyProgram).GetDocTree();
+        Console.WriteLine("DOCTREE_START " + ConvertToJson(docTree) + " DOCTREE_END");
+      } else {
+        Console.WriteLine("DOCTREE_START [] DOCTREE_END");
+      }
+    }
+
     public void Symbols() {
       ServerUtils.ApplyArgs(args, reporter);
       if (Parse() && Resolve()) {

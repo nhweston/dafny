@@ -31,7 +31,7 @@ namespace Microsoft.Dafny {
         encode = true;
         n++;
       }
-      
+
       if (selftest) {
         VerificationTask.SelfTest();
         return;
@@ -171,6 +171,10 @@ namespace Microsoft.Dafny {
           ServerUtils.checkArgs(command, 0);
           var vt = ReadVerificationTask(inputIsPlaintext);
           vt.CounterExample();
+        } else if (verb == "doctree") {
+          ServerUtils.checkArgs(command, 0);
+          var vt = ReadVerificationTask(inputIsPlaintext);
+          vt.DocTree();
         } else if (verb == "dotgraph") {
           ServerUtils.checkArgs(command, 0);
           var vt = ReadVerificationTask(inputIsPlaintext);
