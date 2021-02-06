@@ -57,10 +57,15 @@ namespace DafnyServer {
       foreach (var decl in allDecls) {
         var filename = decl.tok.filename;
         if (!files.ContainsKey(filename)) {
+          var includes = new List<ICollection<string>>();
+          foreach (var path in includesByFile.GetValueOrDefault(filename, new List<string>())) {
+            var include = path.Split(Path.DirectorySeparatorChar);
+            includes.Add(include);
+          }
           files[filename] = new FileNode {
             Path = filename,
             Decls = new List<DeclNode>(),
-            Includes = includesByFile.GetValueOrDefault(filename, new List<string>()),
+            Includes = includes,
           };
         }
         files[filename].Decls.Add(ToDeclNode(decl));
@@ -117,6 +122,7 @@ namespace DafnyServer {
     }
 
     private ImportNode ToImportNode(AliasModuleDecl am) {
+      Console.WriteLine("Import: " + am.Name);
       return new ImportNode {
         Name = am.Name,
         Target = ToTokenNode(am.TargetQId.Def.tok),
@@ -126,10 +132,11 @@ namespace DafnyServer {
     }
 
     private ModuleNode ToModuleNode(ModuleDefinition mod, DocComment dc) {
+      Console.WriteLine("Module: " + mod.Name);
       return new ModuleNode {
         Name = mod.Name,
         IsAbstract = mod.IsAbstract,
-        Refines = mod.RefinementQId.ToString(),
+        Refines = mod.RefinementQId == null ? null : mod.RefinementQId.ToString(),
         Decls = CollectDecls(mod).Select(ToDeclNode).Where(d => d != null).ToList(),
         UserDoc = dc == null ? null : dc.MainBody,
         Token = ToTokenNode(mod.tok),
@@ -137,6 +144,7 @@ namespace DafnyServer {
     }
 
     private ClassNode ToClassNode(ClassDecl cl) {
+      Console.WriteLine("Class: " + cl.Name);
       var dc = new DocComment(cl.DocComment);
       return new ClassNode {
         Name = cl.Name,
@@ -150,12 +158,14 @@ namespace DafnyServer {
     }
 
     private DatatypeNode ToDatatypeNode(DatatypeDecl dt) {
+      Console.WriteLine("Datatype: " + dt.Name);
       var dc = new DocComment(dt.DocComment);
       var ctors = new List<CtorNode>();
       foreach (var ctor in dt.Ctors) {
+        Console.WriteLine("Constructor: " + ctor.Name);
         ctors.Add(new CtorNode {
           Name = ctor.Name,
-          ValueParams = ctor.Formals.Select(f => ToFormalNode(f, null, false)).ToList(),
+          ValueParams = ctor.Formals.Select(f => ToValueParamNode(f, null, false)).ToList(),
           Token = ToTokenNode(ctor.tok),
         });
       }
@@ -169,6 +179,7 @@ namespace DafnyServer {
     }
 
     private TypeSynonymNode ToTypeSynonymNode(TypeSynonymDecl ts) {
+      Console.WriteLine("Type synonym: " + ts.Name);
       var dc = new DocComment(ts.DocComment);
       return new TypeSynonymNode {
         Name = ts.Name,
@@ -180,6 +191,7 @@ namespace DafnyServer {
     }
 
     private TypeSynonymNode ToTypeSynonymNode(OpaqueTypeDecl ot) {
+      Console.WriteLine("Type synonym: " + ot.Name);
       var dc = new DocComment(ot.DocComment);
       return new TypeSynonymNode {
         Name = ot.Name,
@@ -191,10 +203,12 @@ namespace DafnyServer {
     }
 
     private NewtypeNode ToNewtypeNode(NewtypeDecl nt) {
+      Console.WriteLine("Newtype: " + nt.Name);
       var dc = new DocComment(nt.DocComment);
+      var token = ToTokenNode(nt.tok);
       return new NewtypeNode {
         Name = nt.Name,
-        BaseType = nt.BaseType.ToString(),
+        BaseType = ToTypeRefNode(nt.BaseType, token),
         Constraint = Printer.ExprToString(nt.Constraint),
         UserDoc = dc.MainBody,
         Token = ToTokenNode(nt.tok),
@@ -202,6 +216,7 @@ namespace DafnyServer {
     }
 
     private FunctionNode ToFunctionNode(Function f) {
+      Console.WriteLine("Function: " + f.Name);
       var dc = new DocComment(f.DocComment);
       var modifiers = new List<string>();
       if (f.IsGhost) {
@@ -210,17 +225,18 @@ namespace DafnyServer {
       if (f.IsStatic) {
         modifiers.Add("static");
       }
+      var token = ToTokenNode(f.tok);
       var spec = new List<SpecNode>();
       foreach (var req in f.Req) {
-        spec.Add(ToSpecNode(req, "requires"));
+        spec.Add(ToSpecNode(req, "requires", token));
       }
       foreach (var ens in f.Ens) {
-        spec.Add(ToSpecNode(ens, "ensures"));
+        spec.Add(ToSpecNode(ens, "ensures", token));
       }
       foreach (var reads in f.Reads) {
-        spec.Add(ToSpecNode(reads, "reads"));
+        spec.Add(ToSpecNode(reads, "reads", token));
       }
-      spec.Add(ToSpecNode(f.Decreases, "decreases"));
+      spec.Add(ToSpecNode(f.Decreases, "decreases", token));
       return new FunctionNode {
         Name = f.Name,
         Kind =
@@ -233,15 +249,16 @@ namespace DafnyServer {
           : "function method",
         Modifiers = modifiers,
         TypeParams = f.TypeArgs.Select(tp => ToTypeParamNode(tp, dc)).ToList(),
-        ValueParams = f.Formals.Select(vp => ToFormalNode(vp, dc, false)).ToList(),
-        ReturnType = f.ResultType.ToString(),
+        ValueParams = f.Formals.Select(vp => ToValueParamNode(vp, dc, false)).ToList(),
+        ReturnType = ToTypeRefNode(f.ResultType, token),
         Spec = spec,
         UserDoc = dc.MainBody,
-        Token = ToTokenNode(f.tok),
+        Token = token,
       };
     }
 
     private MethodNode ToMethodNode(Method m) {
+      Console.WriteLine("Method: " + m.Name);
       var dc = new DocComment(m.DocComment);
       var modifiers = new List<string>();
       if (m.IsGhost) {
@@ -250,15 +267,16 @@ namespace DafnyServer {
       if (m.IsStatic) {
         modifiers.Add("static");
       }
+      var token = ToTokenNode(m.tok);
       var spec = new List<SpecNode>();
       foreach (var req in m.Req) {
-        spec.Add(ToSpecNode(req, "requires"));
+        spec.Add(ToSpecNode(req, "requires", token));
       }
       foreach (var ens in m.Ens) {
-        spec.Add(ToSpecNode(ens, "ensures"));
+        spec.Add(ToSpecNode(ens, "ensures", token));
       }
-      spec.Add(ToSpecNode(m.Mod, "modifies"));
-      spec.Add(ToSpecNode(m.Decreases, "decreases"));
+      spec.Add(ToSpecNode(m.Mod, "modifies", token));
+      spec.Add(ToSpecNode(m.Decreases, "decreases", token));
       return new MethodNode {
         Name = m.Name,
         Kind =
@@ -270,33 +288,37 @@ namespace DafnyServer {
           : "method",
         Modifiers = modifiers,
         TypeParams = m.TypeArgs.Select(tp => ToTypeParamNode(tp, dc)).ToList(),
-        ValueParams = m.Ins.Select(vp => ToFormalNode(vp, dc, false)).ToList(),
-        Returns = m.Outs.Select(vp => ToFormalNode(vp, dc, true)).ToList(),
+        ValueParams = m.Ins.Select(vp => ToValueParamNode(vp, dc, false)).ToList(),
+        Returns = m.Outs.Select(vp => ToValueParamNode(vp, dc, true)).ToList(),
         Spec = spec,
         UserDoc = dc.MainBody,
-        Token = ToTokenNode(m.tok),
+        Token = token,
       };
     }
 
     private FieldNode ToFieldNode(Field f) {
+      Console.WriteLine("Field: " + f.Name);
       var dc = new DocComment(f.DocComment);
+      var token = ToTokenNode(f.tok);
       return new FieldNode {
         Name = f.Name,
-        Type = f.Type.ToString(),
+        Type = ToTypeRefNode(f.Type, token),
         UserDoc = dc.MainBody,
-        Token = ToTokenNode(f.tok),
+        Token = token,
       };
     }
 
     private TokenNode ToTokenNode(IToken tok) {
+      var pathRaw = tok.filename.Split('[')[0];
       return new TokenNode {
-        File = tok.filename.Split('[')[0],
+        Path = pathRaw.Split(Path.DirectorySeparatorChar),
         Line = tok.line,
         Column = tok.col,
       };
     }
 
     private TypeParamNode ToTypeParamNode(TypeParameter tp, DocComment dc) {
+      Console.WriteLine("Type parameter: " + tp.Name);
       return new TypeParamNode {
         Name = tp.Name,
         UserDoc = dc == null || dc.TypeParamTags == null ? null : dc.TypeParamTags[tp.Name],
@@ -304,7 +326,8 @@ namespace DafnyServer {
       };
     }
 
-    private FormalNode ToFormalNode(Formal f, DocComment dc, bool isOut) {
+    private ValueParamNode ToValueParamNode(Formal f, DocComment dc, bool isOut) {
+      Console.WriteLine("Value parameter: " + f.Name);
       string userDoc = null;
       if (dc != null) {
         var tags = isOut ? dc.ReturnTags : dc.ValueParamTags;
@@ -312,109 +335,134 @@ namespace DafnyServer {
           userDoc = tags.GetValueOrDefault(f.Name);
         }
       }
-      return new FormalNode {
+      var token = ToTokenNode(f.tok);
+      return new ValueParamNode {
         Name = f.Name,
-        Type = ToTypeRefNode(f.Type),
+        Type = ToTypeRefNode(f.Type, token),
         UserDoc = userDoc,
-        Token = ToTokenNode(f.tok),
+        Token = token,
       };
     }
 
-    private SpecNode ToSpecNode(AttributedExpression expr, string kind) {
+    private SpecNode ToSpecNode(AttributedExpression expr, string kind, TokenNode token) {
+      Console.WriteLine("Specification (" + kind + ")");
       var dc = new DocComment(expr.DocComment);
       return new SpecNode {
         Kind = kind,
         Clause = Printer.ExprToString(expr.E),
         UserDoc = dc.MainBody,
+        Token = token,
       };
     }
 
-    private SpecNode ToSpecNode(FrameExpression expr, string kind) {
+    private SpecNode ToSpecNode(FrameExpression expr, string kind, TokenNode token) {
+      Console.WriteLine("Specification (" + kind + ")");
       return new SpecNode {
         Kind = kind,
         Clause = Printer.ExprToString(expr.E),
         UserDoc = null,
+        Token = token,
       };
     }
 
-    private SpecNode ToSpecNode(Specification<Expression> spec, string kind) {
+    private SpecNode ToSpecNode(Specification<Expression> spec, string kind, TokenNode token) {
+      Console.WriteLine("Specification (" + kind + ")");
       return new SpecNode {
         Kind = kind,
         Clause = string.Join(", ", spec.Expressions.Select(Printer.ExprToString)),
         UserDoc = null,
+        Token = token,
       };
     }
 
-    private SpecNode ToSpecNode(Specification<FrameExpression> spec, string kind) {
+    private SpecNode ToSpecNode(Specification<FrameExpression> spec, string kind, TokenNode token) {
+      Console.WriteLine("Specification (" + kind + ")");
       return new SpecNode {
         Kind = kind,
         Clause = string.Join(", ", spec.Expressions.Select(e => Printer.ExprToString(e.E))),
         UserDoc = null,
+        Token = token,
       };
     }
 
-    private TypeRefNode ToTypeRefNode(Microsoft.Dafny.Type t) {
+    private TypeRefNode ToTypeRefNode(Microsoft.Dafny.Type t, TokenNode token) {
       if (t.IsRevealableType && t.AsRevealableType is TypeSynonymDecl ts && ts.tok != null &&
           ts.tok.filename != null) {
+        Console.WriteLine("Type synonym reference: " + ts.Name);
         return new TypeRefNode {
           Name = ts.Name,
           Target = ToTokenNode(ts.tok),
-          TypeParams = t.TypeArgs.Select(ToTypeRefNode).ToList(),
+          TypeParams = t.TypeArgs.Select(tp => ToTypeRefNode(tp, token)).ToList(),
+          Token = token,
         };
       }
       if (t.IsArrayType) {
+        Console.WriteLine("Array type reference");
         var at = t.AsArrayType;
         var tps = new List<TypeRefNode>();
-        tps.Add(ToTypeRefNode(t.TypeArgs[0]));
+        tps.Add(ToTypeRefNode(t.TypeArgs[0], token));
         return new TypeRefNode {
           Name = "array",
           TypeParams = tps,
+          Token = token,
         };
       }
       if (t.AsCollectionType != null) {
+        Console.WriteLine("Collection type reference");
         var ct = t.AsCollectionType;
         return new TypeRefNode {
           Name = ct.CollectionTypeName,
-          TypeParams = t.TypeArgs.Select(ToTypeRefNode).ToList(),
+          TypeParams = t.TypeArgs.Select(tp => ToTypeRefNode(tp, token)).ToList(),
+          Token = token,
         };
       }
       if (t.IsArrowType) {
+        Console.WriteLine("Function type reference");
         var at = t.AsArrowType;
         return new TypeRefNode {
           Name = at.Name,
-          TypeParams = t.TypeArgs.Select(ToTypeRefNode).ToList(),
+          TypeParams = t.TypeArgs.Select(tp => ToTypeRefNode(tp, token)).ToList(),
           Special = "Function",
+          Token = token,
         };
       }
       if (t.IsTypeParameter) {
+        Console.WriteLine("Type parameter reference");
         var tp = t.AsTypeParameter;
         return new TypeRefNode {
           Name = tp.Name,
           Target = ToTokenNode(tp.tok),
           TypeParams = new TypeRefNode[0],
+          Token = token,
         };
       }
       if (t.IsDatatype) {
+        Console.WriteLine("Tuple type reference");
         var dt = t.AsDatatype;
         if (dt is TupleTypeDecl tt) {
           return new TypeRefNode {
             Name = dt.Name,
-            TypeParams = t.TypeArgs.Select(ToTypeRefNode).ToList(),
+            TypeParams = t.TypeArgs.Select(tp => ToTypeRefNode(tp, token)).ToList(),
             Special = "Tuple",
+            Token = token,
           };
         }
       }
       if (t.IsNonNullRefType) {
         var udt = t.AsNonNullRefType;
+        Console.WriteLine("Type reference: " + udt.Name);
         return new TypeRefNode {
           Name = udt.Name,
           Target = ToTokenNode(udt.tok),
-          TypeParams = t.TypeArgs.Select(ToTypeRefNode).ToList(),
+          TypeParams = t.TypeArgs.Select(tp => ToTypeRefNode(tp, token)).ToList(),
+          Token = token,
         };
       }
+      Console.WriteLine("Other type reference: " + t.ToString());
       return new TypeRefNode {
         Name = t.ToString(),
         TypeParams = new TypeRefNode[0],
+        Token = token,
       };
     }
 
@@ -499,6 +547,8 @@ namespace DafnyServer {
 
   }
 
+  [Serializable]
+  [DataContract]
   public class DeclNode { }
 
   [Serializable]
@@ -510,11 +560,13 @@ namespace DafnyServer {
     public string Clause;
     [DataMember]
     public string UserDoc;
+    [DataMember]
+    public TokenNode Token;
   }
 
   [Serializable]
   [DataContract]
-  public class FormalNode {
+  public class ValueParamNode {
     [DataMember]
     public string Name;
     [DataMember]
@@ -542,7 +594,7 @@ namespace DafnyServer {
     [DataMember]
     public string Name;
     [DataMember]
-    public ICollection<FormalNode> ValueParams;
+    public ICollection<ValueParamNode> ValueParams;
     [DataMember]
     public TokenNode Token;
   }
@@ -566,7 +618,7 @@ namespace DafnyServer {
   [DataContract]
   public class TokenNode {
     [DataMember]
-    public string File;
+    public ICollection<string> Path;
     [DataMember]
     public int Line;
     [DataMember]
@@ -590,9 +642,7 @@ namespace DafnyServer {
     [DataMember]
     public ICollection<DeclNode> Decls;
     [DataMember]
-    public ICollection<string> Includes;
-    [DataMember]
-    public ICollection<ImportNode> Imports;
+    public ICollection<ICollection<string>> Includes;
   }
 
   [Serializable]
@@ -696,7 +746,7 @@ namespace DafnyServer {
     [DataMember]
     public string Name;
     [DataMember]
-    public string BaseType;
+    public TypeRefNode BaseType;
     [DataMember]
     public string Constraint;
     [DataMember]
@@ -717,9 +767,9 @@ namespace DafnyServer {
     [DataMember]
     public ICollection<TypeParamNode> TypeParams;
     [DataMember]
-    public ICollection<FormalNode> ValueParams;
+    public ICollection<ValueParamNode> ValueParams;
     [DataMember]
-    public string ReturnType;
+    public TypeRefNode ReturnType;
     [DataMember]
     public ICollection<SpecNode> Spec;
     [DataMember]
@@ -740,9 +790,9 @@ namespace DafnyServer {
     [DataMember]
     public ICollection<TypeParamNode> TypeParams;
     [DataMember]
-    public ICollection<FormalNode> ValueParams;
+    public ICollection<ValueParamNode> ValueParams;
     [DataMember]
-    public ICollection<FormalNode> Returns;
+    public ICollection<ValueParamNode> Returns;
     [DataMember]
     public ICollection<SpecNode> Spec;
     [DataMember]
@@ -757,7 +807,7 @@ namespace DafnyServer {
     [DataMember]
     public string Name;
     [DataMember]
-    public string Type;
+    public TypeRefNode Type;
     [DataMember]
     public string UserDoc;
     [DataMember]
