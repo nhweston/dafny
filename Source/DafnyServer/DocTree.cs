@@ -46,11 +46,13 @@ namespace DafnyServer {
       // collect includes
       var includesByFile = new Dictionary<string, List<string>>();
       foreach (var include in module.Includes) {
-        var includer = include.includerFilename;
+        var includer = include.tok.filename;
+        Console.WriteLine("Includer: " + includer);
+        Console.WriteLine("Included: " + include.canonicalPath);
         if (!includesByFile.ContainsKey(includer)) {
           includesByFile.Add(includer, new List<string>());
         }
-        includesByFile[includer].Add(include.includedFilename);
+        includesByFile[includer].Add(include.canonicalPath);
       }
       // associate files to declarations
       var files = new Dictionary<string, FileNode>();
@@ -125,7 +127,7 @@ namespace DafnyServer {
       Console.WriteLine("Import: " + am.Name);
       return new ImportNode {
         Name = am.Name,
-        Target = ToTokenNode(am.TargetQId.Def.tok),
+        Target = ToTokenNode(am.TargetQId.Root.tok),
         IsOpened = am.Opened,
         Token = ToTokenNode(am.tok),
       };
